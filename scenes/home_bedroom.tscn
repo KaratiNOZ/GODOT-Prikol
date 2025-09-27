@@ -1,0 +1,119 @@
+[gd_scene load_steps=14 format=3 uid="uid://2bdb3mbvm1mm"]
+
+[ext_resource type="Texture2D" uid="uid://dld5ubm2bd68v" path="res://assets/sprites/test_background.png" id="1_tiebc"]
+[ext_resource type="PackedScene" uid="uid://va2hrhfplbwb" path="res://scenes/player.tscn" id="2_n5380"]
+[ext_resource type="Texture2D" uid="uid://dgfst1wq6gjh6" path="res://assets/sprites/barier.png" id="3_n5380"]
+[ext_resource type="Script" uid="uid://bldmo0db0w8vi" path="res://src/scripts/local/collision_texture_applier.gd" id="4_cxv8b"]
+[ext_resource type="Script" uid="uid://dfp4xe688o1td" path="res://src/scripts/local/room_transition.gd" id="5_sd06q"]
+[ext_resource type="Texture2D" uid="uid://drc3orsjegirb" path="res://assets/sprites/test_npc.png" id="6_ht41p"]
+[ext_resource type="Script" uid="uid://dvbvmtpjm6j3n" path="res://scenes/dialog_area_2d.gd" id="7_5t0je"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tiebc"]
+size = Vector2(478, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_n5380"]
+size = Vector2(17, 177)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_cxv8b"]
+size = Vector2(13, 156)
+
+[sub_resource type="GDScript" id="GDScript_ht41p"]
+script/source = "extends CharacterBody2D
+
+
+func _process(delta: float) -> void:
+	if global_vars.npc_fade == true:
+		self.queue_free()
+	else:
+		if global_vars.player_y > 234:
+			self.z_index = 0
+		else:
+			self.z_index = 1
+"
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ht41p"]
+size = Vector2(139, 55)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5t0je"]
+size = Vector2(48, 20)
+
+[node name="home_bedroom" type="Node2D"]
+
+[node name="background" type="Sprite2D" parent="."]
+position = Vector2(320, 240)
+texture = ExtResource("1_tiebc")
+
+[node name="player" parent="." instance=ExtResource("2_n5380")]
+position = Vector2(324, 302)
+
+[node name="walls" type="StaticBody2D" parent="."]
+
+[node name="walls_collision_1" type="CollisionShape2D" parent="walls"]
+position = Vector2(320, 409)
+shape = SubResource("RectangleShape2D_tiebc")
+
+[node name="walls_collision_texture_1" type="Sprite2D" parent="walls/walls_collision_1"]
+visible = false
+texture = ExtResource("3_n5380")
+script = ExtResource("4_cxv8b")
+
+[node name="walls_collision_2" type="CollisionShape2D" parent="walls"]
+position = Vector2(320, 233)
+shape = SubResource("RectangleShape2D_tiebc")
+
+[node name="walls_collision_texture2" type="Sprite2D" parent="walls/walls_collision_2"]
+visible = false
+position = Vector2(0, 176)
+texture = ExtResource("3_n5380")
+script = ExtResource("4_cxv8b")
+
+[node name="walls_collision_3" type="CollisionShape2D" parent="walls"]
+position = Vector2(72.5, 311.5)
+shape = SubResource("RectangleShape2D_n5380")
+
+[node name="walls_collision_texture3" type="Sprite2D" parent="walls/walls_collision_3"]
+visible = false
+position = Vector2(247.5, 97.5)
+texture = ExtResource("3_n5380")
+script = ExtResource("4_cxv8b")
+
+[node name="goto_trigger" type="Area2D" parent="."]
+script = ExtResource("5_sd06q")
+target_scene = "res://scenes/home_living.tscn"
+target_spawn_point = "spawn_point_1"
+
+[node name="trigger_collision" type="CollisionShape2D" parent="goto_trigger"]
+position = Vector2(559.5, 321)
+shape = SubResource("RectangleShape2D_cxv8b")
+
+[node name="spawn_point_1" type="Marker2D" parent="."]
+position = Vector2(525, 299)
+
+[node name="TestNPC" type="CharacterBody2D" parent="."]
+z_index = 1
+script = SubResource("GDScript_ht41p")
+
+[node name="TestNPCsprite" type="Sprite2D" parent="TestNPC"]
+position = Vector2(204, 276)
+scale = Vector2(2.89796, 2.89796)
+texture = ExtResource("6_ht41p")
+
+[node name="test_NPC_collision" type="CollisionShape2D" parent="TestNPC"]
+position = Vector2(203.5, 319.5)
+shape = SubResource("RectangleShape2D_ht41p")
+
+[node name="NPC_collision_texture" type="Sprite2D" parent="TestNPC/test_NPC_collision"]
+visible = false
+position = Vector2(116.5, 89.5)
+texture = ExtResource("3_n5380")
+script = ExtResource("4_cxv8b")
+
+[node name="dialogArea2D" type="Area2D" parent="TestNPC"]
+z_index = 1
+script = ExtResource("7_5t0je")
+
+[node name="dialogZone" type="CollisionShape2D" parent="TestNPC/dialogArea2D"]
+z_index = 1
+position = Vector2(206, 347)
+shape = SubResource("RectangleShape2D_5t0je")
+debug_color = Color(0.992628, 0, 0.24936, 0.42)

@@ -1,0 +1,69 @@
+[gd_scene load_steps=9 format=3 uid="uid://dpj3j26wpjxeu"]
+
+[ext_resource type="Texture2D" uid="uid://e0cxmhtvtl6x" path="res://assets/sprites/zalupa.png" id="1_e7755"]
+[ext_resource type="PackedScene" uid="uid://va2hrhfplbwb" path="res://scenes/player.tscn" id="2_4kdyi"]
+[ext_resource type="Texture2D" uid="uid://dgfst1wq6gjh6" path="res://assets/sprites/barier.png" id="3_hobx5"]
+[ext_resource type="Script" uid="uid://bldmo0db0w8vi" path="res://src/scripts/local/collision_texture_applier.gd" id="4_hmkug"]
+[ext_resource type="Script" uid="uid://dfp4xe688o1td" path="res://src/scripts/local/room_transition.gd" id="5_4kdyi"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_86ajg"]
+size = Vector2(640, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5ila3"]
+size = Vector2(20, 32)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hobx5"]
+size = Vector2(9.25, 77)
+
+[node name="sanctuary" type="Node2D"]
+
+[node name="background" type="Sprite2D" parent="."]
+position = Vector2(320, 250)
+scale = Vector2(8, 10)
+texture = ExtResource("1_e7755")
+
+[node name="player" parent="." instance=ExtResource("2_4kdyi")]
+position = Vector2(220, 421.5)
+
+[node name="walls" type="StaticBody2D" parent="."]
+
+[node name="walls_collision_1" type="CollisionShape2D" parent="walls"]
+position = Vector2(320, 490)
+shape = SubResource("RectangleShape2D_86ajg")
+
+[node name="walls_collision_texture_1" type="Sprite2D" parent="walls/walls_collision_1"]
+visible = false
+texture = ExtResource("3_hobx5")
+script = ExtResource("4_hmkug")
+
+[node name="walls_collision_2" type="CollisionShape2D" parent="walls"]
+position = Vector2(320, 440.4)
+shape = SubResource("RectangleShape2D_86ajg")
+
+[node name="walls_collision_texture_2" type="Sprite2D" parent="walls/walls_collision_2"]
+visible = false
+texture = ExtResource("3_hobx5")
+script = ExtResource("4_hmkug")
+
+[node name="walls_collision_3" type="CollisionShape2D" parent="walls"]
+position = Vector2(630, 465)
+shape = SubResource("RectangleShape2D_5ila3")
+
+[node name="walls_collision_texture_3" type="Sprite2D" parent="walls/walls_collision_3"]
+visible = false
+position = Vector2(-310, -24.6)
+texture = ExtResource("3_hobx5")
+script = ExtResource("4_hmkug")
+
+[node name="spawn_point_1" type="Marker2D" parent="."]
+position = Vector2(39, 421.5)
+
+[node name="goto_trigger" type="Area2D" parent="."]
+position = Vector2(341, 320)
+script = ExtResource("5_4kdyi")
+target_scene = "res://scenes/home_living.tscn"
+target_spawn_point = "spawn_point_2"
+
+[node name="trigger_collision" type="CollisionShape2D" parent="goto_trigger"]
+position = Vector2(-336.375, 134.5)
+shape = SubResource("RectangleShape2D_hobx5")

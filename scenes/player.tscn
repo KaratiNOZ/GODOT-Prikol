@@ -1,0 +1,77 @@
+[gd_scene load_steps=11 format=3 uid="uid://va2hrhfplbwb"]
+
+[ext_resource type="Script" uid="uid://bdkx7c4bblax3" path="res://src/scripts/local/player_movement.gd" id="1_dqkch"]
+[ext_resource type="Texture2D" uid="uid://5oy04tovb6dj" path="res://assets/sprites/lol.png" id="1_qhqgy"]
+[ext_resource type="Texture2D" uid="uid://dgfst1wq6gjh6" path="res://assets/sprites/barier.png" id="2_dqkch"]
+[ext_resource type="Script" uid="uid://cn0gm7egilg5s" path="res://src/scripts/local/plr_main_collision_texture.gd" id="3_qlg0r"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2hs0m"]
+atlas = ExtResource("1_qhqgy")
+region = Rect2(48, 0, 47, 117)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1jxqw"]
+atlas = ExtResource("1_qhqgy")
+region = Rect2(0, 0, 47, 117)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dw050"]
+atlas = ExtResource("1_qhqgy")
+region = Rect2(144, 0, 33, 117)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_b26j0"]
+atlas = ExtResource("1_qhqgy")
+region = Rect2(96, 0, 33, 117)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_n7ghd"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2hs0m")
+}],
+"loop": true,
+"name": &"back",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1jxqw")
+}],
+"loop": true,
+"name": &"front",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dw050")
+}],
+"loop": true,
+"name": &"left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_b26j0")
+}],
+"loop": true,
+"name": &"right",
+"speed": 5.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_nvl01"]
+size = Vector2(46, 29.5)
+
+[node name="player" type="CharacterBody2D"]
+z_index = 1
+script = ExtResource("1_dqkch")
+
+[node name="player_sprites" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_n7ghd")
+animation = &"front"
+
+[node name="plr_main_collision" type="CollisionShape2D" parent="."]
+position = Vector2(0, 43.75)
+shape = SubResource("RectangleShape2D_nvl01")
+
+[node name="plr_main_collision_texture" type="Sprite2D" parent="plr_main_collision"]
+visible = false
+texture = ExtResource("2_dqkch")
+script = ExtResource("3_qlg0r")

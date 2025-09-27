@@ -1,0 +1,198 @@
+[gd_scene load_steps=19 format=3 uid="uid://dhr18pb6d8xd8"]
+
+[ext_resource type="Texture2D" uid="uid://dxuhosn71yf7o" path="res://assets/sprites/test_location.png" id="1_0buge"]
+[ext_resource type="Texture2D" uid="uid://dgfst1wq6gjh6" path="res://assets/sprites/barier.png" id="2_kqr2f"]
+[ext_resource type="Script" uid="uid://bldmo0db0w8vi" path="res://src/scripts/local/collision_texture_applier.gd" id="3_fepya"]
+[ext_resource type="PackedScene" uid="uid://va2hrhfplbwb" path="res://scenes/player.tscn" id="4_uw2ja"]
+[ext_resource type="Script" uid="uid://dfp4xe688o1td" path="res://src/scripts/local/room_transition.gd" id="5_fepya"]
+[ext_resource type="Script" uid="uid://d6ofg8k7fv2n" path="res://scenes/test_enemy.gd" id="6_a2m88"]
+[ext_resource type="Texture2D" uid="uid://bcgqsrm0k2ac1" path="res://assets/sprites/test_enemy.png" id="6_uw2ja"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_a2m88"]
+size = Vector2(640, 24.5)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_2lwlr"]
+size = Vector2(14, 114.5)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_7m3e1"]
+size = Vector2(14, 61)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kqr2f"]
+size = Vector2(9.25, 77)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_na2dy"]
+size = Vector2(56, 39)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_nxoyp"]
+size = Vector2(404, 310)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a2m88"]
+atlas = ExtResource("6_uw2ja")
+region = Rect2(0, 0, 63, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2lwlr"]
+atlas = ExtResource("6_uw2ja")
+region = Rect2(72, 0, 63, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7m3e1"]
+atlas = ExtResource("6_uw2ja")
+region = Rect2(144, 0, 69, 120)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_na2dy"]
+atlas = ExtResource("6_uw2ja")
+region = Rect2(222, 0, 93, 120)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_na2dy"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a2m88")
+}],
+"loop": true,
+"name": &"1",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2lwlr")
+}],
+"loop": true,
+"name": &"2",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7m3e1")
+}],
+"loop": true,
+"name": &"3",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_na2dy")
+}],
+"loop": true,
+"name": &"get_damage",
+"speed": 5.0
+}]
+
+[node name="home_living" type="Node2D"]
+
+[node name="background" type="Sprite2D" parent="."]
+position = Vector2(320, 240.512)
+scale = Vector2(3.69942, 5.17229)
+texture = ExtResource("1_0buge")
+
+[node name="walls" type="StaticBody2D" parent="."]
+
+[node name="walls_collision_1" type="CollisionShape2D" parent="walls"]
+position = Vector2(320, 216.25)
+shape = SubResource("RectangleShape2D_a2m88")
+
+[node name="walls_collision_texture_1" type="Sprite2D" parent="walls/walls_collision_1"]
+visible = false
+texture = ExtResource("2_kqr2f")
+script = ExtResource("3_fepya")
+
+[node name="walls_collision_2" type="CollisionShape2D" parent="walls"]
+position = Vector2(320, 492.25)
+shape = SubResource("RectangleShape2D_a2m88")
+
+[node name="walls_collision_texture2" type="Sprite2D" parent="walls/walls_collision_2"]
+visible = false
+position = Vector2(0, -276)
+texture = ExtResource("2_kqr2f")
+script = ExtResource("3_fepya")
+
+[node name="walls_collision_3" type="CollisionShape2D" parent="walls"]
+position = Vector2(7, 285.75)
+shape = SubResource("RectangleShape2D_2lwlr")
+
+[node name="walls_collision_texture3" type="Sprite2D" parent="walls/walls_collision_3"]
+visible = false
+position = Vector2(313, -69.5)
+texture = ExtResource("2_kqr2f")
+script = ExtResource("3_fepya")
+
+[node name="walls_collision_4" type="CollisionShape2D" parent="walls"]
+position = Vector2(7, 450.5)
+shape = SubResource("RectangleShape2D_7m3e1")
+
+[node name="walls_collision_texture4" type="Sprite2D" parent="walls/walls_collision_4"]
+visible = false
+position = Vector2(313, -234.25)
+texture = ExtResource("2_kqr2f")
+script = ExtResource("3_fepya")
+
+[node name="walls_collision_6" type="CollisionShape2D" parent="walls"]
+position = Vector2(633, 450.5)
+shape = SubResource("RectangleShape2D_7m3e1")
+
+[node name="walls_collision_texture6" type="Sprite2D" parent="walls/walls_collision_6"]
+visible = false
+position = Vector2(-313, -234.25)
+texture = ExtResource("2_kqr2f")
+script = ExtResource("3_fepya")
+
+[node name="walls_collision_5" type="CollisionShape2D" parent="walls"]
+position = Vector2(633, 285.75)
+shape = SubResource("RectangleShape2D_2lwlr")
+
+[node name="walls_collision_texture5" type="Sprite2D" parent="walls/walls_collision_5"]
+visible = false
+position = Vector2(-313, -69.5)
+texture = ExtResource("2_kqr2f")
+script = ExtResource("3_fepya")
+
+[node name="player" parent="." instance=ExtResource("4_uw2ja")]
+position = Vector2(70, 314)
+
+[node name="spawn_point_1" type="Marker2D" parent="."]
+position = Vector2(45, 355)
+
+[node name="spawn_point_2" type="Marker2D" parent="."]
+position = Vector2(596, 357)
+
+[node name="goto_trigger" type="Area2D" parent="."]
+position = Vector2(341, 320)
+script = ExtResource("5_fepya")
+target_scene = "res://scenes/home_bedroom.tscn"
+target_spawn_point = "spawn_point_1"
+
+[node name="trigger_collision" type="CollisionShape2D" parent="goto_trigger"]
+position = Vector2(-336.375, 61.5)
+shape = SubResource("RectangleShape2D_kqr2f")
+
+[node name="goto_trigger2" type="Area2D" parent="."]
+position = Vector2(341, 320)
+script = ExtResource("5_fepya")
+target_scene = "res://scenes/sanctuary.tscn"
+target_spawn_point = "spawn_point_1"
+
+[node name="trigger_collision" type="CollisionShape2D" parent="goto_trigger2"]
+position = Vector2(294, 62)
+shape = SubResource("RectangleShape2D_kqr2f")
+
+[node name="testEnemy" type="CharacterBody2D" parent="."]
+position = Vector2(331, 304)
+script = ExtResource("6_a2m88")
+
+[node name="enemy_collision" type="CollisionShape2D" parent="testEnemy"]
+position = Vector2(1, 36.5)
+shape = SubResource("RectangleShape2D_na2dy")
+
+[node name="enemy_collision_texture" type="Sprite2D" parent="testEnemy/enemy_collision"]
+visible = false
+texture = ExtResource("2_kqr2f")
+script = ExtResource("3_fepya")
+
+[node name="area_vision" type="Area2D" parent="testEnemy"]
+
+[node name="vision_collision" type="CollisionShape2D" parent="testEnemy/area_vision"]
+shape = SubResource("RectangleShape2D_nxoyp")
+debug_color = Color(0.418645, 0.604393, 1.92523e-07, 0.42)
+
+[node name="enemy_texture" type="AnimatedSprite2D" parent="testEnemy"]
+sprite_frames = SubResource("SpriteFrames_na2dy")
+animation = &"1"
