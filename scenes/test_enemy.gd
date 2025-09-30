@@ -2,7 +2,7 @@ extends CharacterBody2D
 
 # --- ПЕРЕМЕННЫЕ ВРАГА --- #
 var ENEMY = self                              # Ссылка на самого себя
-var ENEMY_HP: int = 1500                      # Здоровье врага
+var ENEMY_HP: int = 1200                      # Здоровье врага
 var ENEMY_WALK_SPEED: int = 90                # Скорость передвижения врага
 
 var IS_CHASING: bool = false                  # Преследует ли враг игрока
@@ -24,7 +24,14 @@ var monologue: int = 0                        # Текущий индекс мо
 var player = null                             # Ссылка на игрока
 var in_fight: bool = false                    # Находится ли игрок в бою
 var player_turn: bool = false                 # Ход игрока или врага
-var player_choice: int = 0
+var player_choice: int = -1
+
+# --- ДЛЯ БОЯ --- #
+var _bars_array: Array[Panel] = []             # Создаем массив для палок
+var _current_index: int = 0
+var _total_bars: int = 0
+var _current_bar: Panel = null
+var _bar_tween: Tween = null
 
 func _ready() -> void:
 	player = get_tree().current_scene.get_node("player") # Получаем ссылку на игрока
@@ -82,8 +89,8 @@ func _process(delta: float) -> void:
 				hp_sprite.texture = load("res://assets/sprites/hp_2_3.png")   # Изменяем спрайт на хп  2 / 3
 			1:
 				hp_sprite.texture = load("res://assets/sprites/hp_1_3.png")   # Изменяем спрайт на хп  1 / 3
-			_:
-				print("Здоровье игрока не является числом")    # Принт на случай ошибок
+			#_:
+			#	print("Здоровье игрока не является числом")    # Принт на случай ошибок
 	
 	# --- ПЕРЕКЛЮЧЕНИЕ КНОПОК --- #
 	if in_fight and player_turn:
@@ -95,49 +102,285 @@ func _process(delta: float) -> void:
 			player_choice = 0
 			buttons[0].texture = load("res://assets/sprites/attack_active.png")
 			buttons[1].texture = load("res://assets/sprites/run_non_active.png")
+		if player_choice == 0 and Input.is_action_just_pressed("Z"):
+			buttons[0].texture = load("res://assets/sprites/attack_non_active.png")
+			player_turn = false
+			player_choice = -1
+			dmg_zone()
 		if player_choice == 1 and Input.is_action_just_pressed("Z"):
 			get_tree().quit()
+
+func dmg_zone() -> void:
+	var damage_zone = Sprite2D.new()    # Создаём зону урона по врагу
+	damage_zone.name = "Damage_Zone"    # Устанавливаем имя, чтобы можно было найти
+	frame_parent.add_child(damage_zone) # Сразу его добавляем его в родительскую рамку
+	
+	var margin = 5  # Отступ со всех сторон
+	
+	damage_zone.texture = load("res://assets/sprites/damage_zone.png")    # Загружаем его текстуру
+	
+	# Начальный размер (невидимый по высоте)
+	damage_zone.scale = Vector2((frame.size.x - margin * 2) / damage_zone.texture.get_width(), 0)
+	damage_zone.z_index = 3 # Просто делаем чтобы был выше слоем
+	damage_zone.position = Vector2(0, 0) # Позиционируем в центре frame
+	
+	# Целевой размер
+	var target_dz_scale = Vector2((frame.size.x - margin * 2) / damage_zone.texture.get_width(), 3)
+	
+	# Вычисляем целевую высоту damage_zone после масштабирования
+	var target_damage_zone_height = damage_zone.texture.get_height() * target_dz_scale.y
+	
+	# Целевой размер frame с учётом отступов
+	var target_frame_size_y = target_damage_zone_height + margin * 2 - 1
+	
+	# Удаляем текст чтобы не мешал
+	frame_parent.remove_child(label)
+	
+	# Вычисляем целевую позицию frame
+	var target_frame_position = Vector2(-frame.size.x / 2, -target_frame_size_y / 2)
+	
+	# Создаём анимацию
+	var tween = create_tween()
+	tween.tween_property(damage_zone, "scale", target_dz_scale, 0.5)
+	tween.parallel().tween_property(frame, "size:y", target_frame_size_y, 0.5)
+	tween.parallel().tween_property(frame, "position:y", target_frame_position.y, 0.5)
+	
+	# После завершения анимации создаём палки
+	tween.tween_callback(func() -> void:
 		
+		# Теперь создаём палки с правильной высотой
+		for i in range(randi_range(4, 6)):
+			var bar = Panel.new()  # Сам тип объекта
+			var bar_style = StyleBoxFlat.new() # Для его стиля
+			frame_parent.add_child(bar) # Сразу добавляем его в родительскую рамку чтобы небыло траблов
+			
+			bar.z_index = 4  # Делаем выше слоем
+			bar.size.x = 10  # Его размер по X
+			bar.size.y = target_damage_zone_height # Его высота по Y
+			
+			bar.position.x = -5 # Центрируем его по центру сначала 
+			bar.position.y = frame.position.y + margin - 1 # Центрируем по Y с учётом отступа
+			
+			bar_style.bg_color = Color.BLACK     # Цвет заливки задника
+			bar_style.border_color = Color.WHITE # Цвет краёв
+			
+			# Размер краёв
+			bar_style.border_width_bottom = 2
+			bar_style.border_width_top = 2
+			bar_style.border_width_left = 2
+			bar_style.border_width_right = 2
+			
+			bar.visible = false  # По умолчанию делаем невидимым 
+			bar.add_theme_stylebox_override("panel", bar_style)  # Присваеваем стиль
+			
+			_bars_array.append(bar) # Добавляем в массив
+		
+		# Запускаем палки последовательно
+		spawn_bars_sequentially(_bars_array, 0, _bars_array.size())
+		print("Размер массива: ", _bars_array.size())
+	)
+	
+func spawn_bars_sequentially(bars_array: Array[Panel], index: int, total_bars: int) -> void:
+	if index >= bars_array.size():
+		return
+	
+	var current_spawned_bar = bars_array[index]
+	
+	# Проверяем что палка всё ещё существует перед использованием
+	if not is_instance_valid(current_spawned_bar):
+		#print("Палка ", index + 1, " уже была удалена, пропускаем")
+		spawn_bars_sequentially(bars_array, index + 1, total_bars)
+		return
+	
+	# Устанавливаем первую палку как активную
+	if index == 0:
+		_current_bar = current_spawned_bar
+		_current_index = 0
+	
+	var start_position = randi_range(0, 1)
+	var start_x: float
+	var target_x: float
+	
+	match start_position:
+		0:
+			start_x = -214
+			target_x = 204
+		1:
+			start_x = 204
+			target_x = -214
+
+	current_spawned_bar.position.x = start_x
+	current_spawned_bar.visible = true
+	
+	var bar_tween = create_tween()
+	bar_tween.parallel().tween_property(current_spawned_bar, "position:x", target_x, 1.0)
+	current_spawned_bar.set_meta("tween", bar_tween)
+	bar_tween.finished.connect(func() -> void:
+		if is_instance_valid(current_spawned_bar):
+			current_spawned_bar.queue_free()
+			#print("Палка ", index + 1, " дошла до конца и удалена")
+			
+			# Если это была активная палка, переключаемся на следующую
+			if _current_bar == current_spawned_bar:
+				_current_index = index + 1
+				if _current_index < _bars_array.size():
+					_current_bar = _bars_array[_current_index]
+					#print("Активная палка теперь: ", _current_index + 1)
+				else:
+					_current_bar = null
+					#print("Все палки завершены")
+			
+			if index + 1 == total_bars:
+				delete_dmg_zone()
+	)
+	
+	var delay = randf_range(0.3, 0.6)
+	await get_tree().create_timer(delay).timeout
+	
+	spawn_bars_sequentially(bars_array, index + 1, total_bars)
+
+func _input(event: InputEvent) -> void:
+	if not in_fight:
+		return
+	
+	if event.is_action_pressed("Z"):
+		# Проверяем, есть ли активная палка
+		if _current_bar != null and is_instance_valid(_current_bar):
+			# Получаем позицию палки по X
+			var bar_x = _current_bar.position.x
+			# Список диапазонов и урона
+			var damage_zones = [
+				{ "min": -214.0, "max": -96.0,  "dmg": 10 },
+				{ "min": -96.0,  "max": -31.0,  "dmg": 50 },
+				{ "min": -22.0,  "max": 12.0,   "dmg": 90 },
+				{ "min": -5.0,   "max": -5.0,   "dmg": 160 }, # точечное попадание
+				{ "min": 20.0,   "max": 95.0,   "dmg": 50 },
+				{ "min": 103.0,  "max": 204.0,  "dmg": 10 },
+			]
+			
+			for zone in damage_zones:
+				if bar_x >= zone.min and bar_x <= zone.max:
+					ENEMY_HP -= zone.dmg
+					break  # чтобы не применилось несколько раз
+			
+			# Останавливаем все твины связанные с этой палкой
+			if _current_bar.has_meta("tween"):
+				var tween = _current_bar.get_meta("tween")
+				if tween and is_instance_valid(tween):
+					tween.kill()
+				_current_bar.remove_meta("tween")
+			
+			# Удаляем активную палку
+			_current_bar.queue_free()
+			#print("Палка удалена игроком")
+			
+			# Переключаемся на следующую активную палку
+			_current_index += 1
+			if _current_index < _bars_array.size():
+				_current_bar = _bars_array[_current_index]
+				# Проверяем что новая активная палка всё ещё валидна
+				if not is_instance_valid(_current_bar):
+					_current_bar = null
+					delete_dmg_zone()
+				else:
+					pass
+					#print("Следующая активная палка: ", _current_index + 1)
+			else:
+				_current_bar = null
+				#print("Все палки завершены")
+				print("Здоровья врага: ", ENEMY_HP)
+				ENEMY_SPRITE_GET_DAMAGE = true
+				animate_sprite(ENEMY.get_node("enemy_texture"))
+				delete_dmg_zone()
 
 func animate_sprite(sprite: AnimatedSprite2D) -> void:
-	if not ENEMY_SPRITE_GET_DAMAGE:           # Если враг не получает урон
-		var sprite_center = sprite.position   # Центральная позиция спрайта
-		var A = 10                            # Амплитуда по X (ширина восьмерки)
-		var B = 5                             # Амплитуда по Y (высота восьмерки)
+	var sprite_center = sprite.position   # Центральная позиция спрайта
+	
+	if not ENEMY_SPRITE_GET_DAMAGE:
+		var A = 10  # Амплитуда по X (ширина восьмерки)
+		var B = 5   # Амплитуда по Y (высота восьмерки)
 		
-		ENEMY_TWEEN = create_tween()          # Создаём твин для анимации
-		ENEMY_TWEEN.set_loops()               # Зацикливаем анимацию
+		# Основная "восьмёрка" анимация
+		ENEMY_TWEEN = create_tween()
+		ENEMY_TWEEN.set_loops()
 		
-		# Анимируем параметр времени от 0 до 1 за 3 секунды
 		ENEMY_TWEEN.tween_method(
 			func(progress): 
-				# Преобразуем прогресс (0-1) в параметр t
 				var t = progress * 2 * PI
-				
-				# Вычисляем смещение по формуле восьмерки
 				var offset_x = A * sin(t)
 				var offset_y = B * sin(2 * t)
-				
-				sprite.position = sprite_center + Vector2(offset_x, offset_y), # Применяем смещение
-			0.0,                              # Начальное значение прогресса
-			1.0,                              # Конечное значение прогресса
-			3.0                               # Время анимации в секундах
-		).set_trans(Tween.TRANS_LINEAR)       # Линейная интерполяция
+				sprite.position = sprite_center + Vector2(offset_x, offset_y),
+			0.0,
+			1.0,
+			3.0
+		).set_trans(Tween.TRANS_LINEAR)
 		
-		random_sprite(sprite)                 # Запускаем случайную смену анимаций спрайта
+		random_sprite(sprite) # Смена анимаций спрайта
+	
+	else:
+		# Если враг получает урон
+		sprite.play("get_damage")
+		
+		# Возможные направления отскока (включая диагонали)
+		var directions = [
+			Vector2(-20, 0), Vector2(20, 0),   # Влево / вправо
+			Vector2(0, -20), Vector2(0, 20),   # Вверх / вниз
+			Vector2(-20, -20), Vector2(20, -20), # Диагонали вверх
+			Vector2(-20, 20), Vector2(20, 20)    # Диагонали вниз
+		]
+		var knockback = directions[randi() % directions.size()]
+		
+		# Твин для отскока
+		var knockback_tween = create_tween()
+		knockback_tween.tween_property(sprite, "position", sprite_center + knockback, 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN_OUT)
+		knockback_tween.tween_property(sprite, "position", sprite_center, 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT_IN)
+	
+		knockback_tween.finished.connect(func():
+			ENEMY_SPRITE_GET_DAMAGE = false
+			animate_sprite(sprite)
+			)
+
 
 func random_sprite(sprite: AnimatedSprite2D):
-	var delay = randi_range(3, 6)             # Случайная задержка от 3 до 6 секунд
-	var next_sprite = randi_range(1, 3)       # Случайный номер анимации от 1 до 3
+	if not ENEMY_SPRITE_GET_DAMAGE:
+		var delay = randi_range(3, 6)             # Случайная задержка от 3 до 6 секунд
+		var next_sprite = randi_range(1, 3)       # Случайный номер анимации от 1 до 3
+		
+		var timer = get_tree().create_timer(delay) # Создаём таймер с задержкой
+		timer.timeout.connect(func():
+			match next_sprite:                    # Выбираем анимацию по номеру
+				1: sprite.play("1")               # Воспроизводим анимацию "1"
+				2: sprite.play("2")               # Воспроизводим анимацию "2"
+				3: sprite.play("3")               # Воспроизводим анимацию "3"
+			random_sprite(sprite)                 # Рекурсивно запускаем следующую смену
+			)
+
+func delete_dmg_zone() -> void:
+	print("Удаления зоны урона")
 	
-	var timer = get_tree().create_timer(delay) # Создаём таймер с задержкой
-	timer.timeout.connect(func():
-		match next_sprite:                    # Выбираем анимацию по номеру
-			1: sprite.play("1")               # Воспроизводим анимацию "1"
-			2: sprite.play("2")               # Воспроизводим анимацию "2"
-			3: sprite.play("3")               # Воспроизводим анимацию "3"
-		random_sprite(sprite)                 # Рекурсивно запускаем следующую смену
-		)
+	var damage_zone: Sprite2D = null
+	for child in frame_parent.get_children():
+		if child is Sprite2D:
+			damage_zone = child
+			break
+	
+	if damage_zone:
+		damage_zone.queue_free()
+		print("Зона удалилась")
+	
+	var tween = create_tween()
+	
+	# Анимируем размер
+	tween.parallel().tween_property(frame, "size", Vector2(185, 185), 0.5)
+	
+	# Анимируем позицию (она должна сместиться в центр по новому размеру)
+	tween.parallel().tween_property(frame, "position", -Vector2(185, 185) / 2, 0.5)
+	
+	print("Враг атакует!")
+	enemy_turn()
+
+func enemy_turn() -> void:
+	pass
 
 func setup_fight() -> void:
 	# --- ЗАДНИК --- #
@@ -160,16 +403,16 @@ func setup_fight() -> void:
 	# Создаем твин для управлением анимации
 	var tween = create_tween()
 	tween.tween_property(fight_background, "modulate:a",   1.0,       0.2) # Изменяем прозрачность за 0.2 секунды
-						# Цель               свойство    значение    время   
-	tween.parallel().tween_property(ENEMY, "position", target_enemy_pos, 1.0).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # Изменяем позицию врага, чтобы он был сверху и был виден во время боя
-	tween.parallel().tween_property(ENEMY, "scale", target_enemy_scale, 1.0).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)   # Изменяем размер врага, чтобы его было видно
+						  # Цель               свойство    значение    время   
+	tween.parallel().tween_property(ENEMY, "position", target_enemy_pos, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # Изменяем позицию врага, чтобы он был сверху и был виден во время боя
+	tween.parallel().tween_property(ENEMY, "scale", target_enemy_scale, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)   # Изменяем размер врага, чтобы его было видно
 	
 	
 	# --- UI ИГРОКА --- #
 	
 	
 	# Инициализация кнопок
-	buttons.resize(4)
+	buttons.resize(2)
 	
 	# Кнопки атаки не активная
 	buttons[0] = Sprite2D.new()                                             # Тип объекта
@@ -216,10 +459,10 @@ func setup_fight() -> void:
 	frame.position = -frame.size / 2                                        # Центрируем относительно родителя   
 	
 	# Анимция для появления элементов
-	tween.tween_property(buttons[0], "position", Vector2(160, 410), 1.0).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(buttons[1], "position", Vector2(480, 410), 1.0).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(hp_sprite, "position", Vector2(320, 410), 1.0).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(frame, "modulate:a", 1.0, 1.0).set_trans(Tween.TRANS_LINEAR)
+	tween.tween_property(buttons[0], "position", Vector2(160, 410), 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(buttons[1], "position", Vector2(480, 410), 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(hp_sprite, "position", Vector2(320, 410), 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(frame, "modulate:a", 1.0, 0.1).set_trans(Tween.TRANS_LINEAR)
 	
 	tween.tween_callback(func() -> void:                 # Ждём окончание всех твинов и только тогда запускаем
 		animate_sprite(ENEMY.get_node("enemy_texture"))  # Передаём текстуру врага
@@ -309,4 +552,3 @@ func start_typing_animation(text: String):
 		print("Typing animation finished")      # Выводим сообщение о завершении
 		set("typing_tween", null)               # Очищаем ссылку на твин
 	)
-	
