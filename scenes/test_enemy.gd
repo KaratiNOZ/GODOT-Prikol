@@ -9,6 +9,8 @@ var IS_CHASING: bool = false                  # Преследует ли вра
 var ENEMY_SPRITE_GET_DAMAGE: bool = false     # Получает ли враг урон в данный момент
 var ENEMY_TWEEN: Tween                        # Твин для анимации движения врага
 
+var ENEMY_TURN: bool = false
+
 # --- ПЕРЕМЕННЫЕ UI --- #
 var fight_background: ColorRect = null        # Задний фон боя
 var frame_parent: Node2D = null               # Родительский узел для рамки диалога
@@ -24,26 +26,41 @@ var monologue: int = 0                        # Текущий индекс мо
 var player = null                             # Ссылка на игрока
 var in_fight: bool = false                    # Находится ли игрок в бою
 var player_turn: bool = false                 # Ход игрока или врага
-var player_choice: int = -1
+var player_choice: int = -1                   # Выбор игрока (по умолчанию -1 т.к. кнопки будут не активны)
+var player_mini = null
+var player_mini_coll = null
+var player_mini_texture = null
+var player_mini_speed: float = 150
+var player_last_move_dir: Vector2 = Vector2.ZERO
 
 # --- ДЛЯ БОЯ --- #
 var _bars_array: Array[Panel] = []             # Создаем массив для палок
-var _current_index: int = 0
-var _total_bars: int = 0
-var _current_bar: Panel = null
-var _bar_tween: Tween = null
+var _current_index: int = 0                    # Текущей индекс палки
+var _total_bars: int = 0                       # Общее количество палок
+var _current_bar: Panel = null                 # Ссылка на текущую палку
+var _bar_tween: Tween = null                   # Твин для анимации палки
+var _middle_turn: bool = false
+
+var tween_process: bool = false
+var ready_to_tween: bool = false
 
 func _ready() -> void:
 	player = get_tree().current_scene.get_node("player") # Получаем ссылку на игрока
+	player_mini = player.get_node("mind")
+	player_mini_coll = player_mini.get_node("mind_collision")
+	player_mini_texture = player_mini_coll.get_node("main_character")
 	$area_vision.body_entered.connect(_on_body_entered)  # Подключаем сигнал входа в зону видимости
 	$area_vision.body_exited.connect(_on_body_exited)    # Подключаем сигнал выхода из зоны видимости
+
 
 # --- ОБРАБОТЧИКИ СИГНАЛОВ AREA2D --- #
 func _on_body_entered(body):
 	IS_CHASING = true                         # Начинаем преследование игрока
 
+
 func _on_body_exited(body):
 	IS_CHASING = false                        # Прекращаем преследование игрока
+
 
 func load_monologue():
 	var file = FileAccess.open("res://src/dialoges/testEnemy.json", FileAccess.READ) # Открываем JSON файл с диалогами
@@ -61,6 +78,7 @@ func load_monologue():
 		print("Не удалось открыть файл res://src/dialoges/testEnemy.json")
 		monologue_data = {}                   # Устанавливаем пустые данные при ошибке
 
+
 func _physics_process(delta: float) -> void:
 	if not IS_CHASING or in_fight:            # Если не преследуем или в бою
 		return                                # Прекращаем обработку движения
@@ -72,9 +90,11 @@ func _physics_process(delta: float) -> void:
 		in_fight = true                       # Начинаем бой
 		IS_CHASING = false                    # Прекращаем преследование
 		global_vars.can_move = false          # Блокируем движение игрока
+		player.get_node("plr_main_collision").disabled = true
 		await get_tree().create_timer(0.2).timeout # Небольшая задержка
 		setup_fight()                         # Запускаем настройку боевого экрана
-	
+
+
 func _process(delta: float) -> void:
 	if not in_fight:                          # Если не в бою
 		if global_vars.player_y > position.y + 5: # Если игрок ниже врага
@@ -89,8 +109,53 @@ func _process(delta: float) -> void:
 				hp_sprite.texture = load("res://assets/sprites/hp_2_3.png")   # Изменяем спрайт на хп  2 / 3
 			1:
 				hp_sprite.texture = load("res://assets/sprites/hp_1_3.png")   # Изменяем спрайт на хп  1 / 3
-			#_:
-			#	print("Здоровье игрока не является числом")    # Принт на случай ошибок
+			0:
+				get_tree().quit()
+		
+		# Передвижение на арене
+		if not player_turn and ENEMY_TURN:
+			var player_mini_dir = Vector2.ZERO
+			
+			if Input.is_action_pressed("ui_left"):
+				player_mini_dir.x -= 1
+			if Input.is_action_pressed("ui_right"):
+				player_mini_dir.x += 1
+			if Input.is_action_pressed("ui_up"):
+				player_mini_dir.y -= 1
+			if Input.is_action_pressed("ui_down"):
+				player_mini_dir.y += 1
+			
+			if player_mini_dir != Vector2.ZERO:
+				player_mini_dir = player_mini_dir.normalized()
+				
+				if player_mini_dir != player_last_move_dir:
+					player_mini_texture.play("me")
+					player_last_move_dir = player_mini_dir
+				
+				# Двигаем игрока
+				player_mini.position += player_mini_dir * player_mini_speed * delta
+				
+				# Глобальные координаты левого верхнего угла рамки
+				var frame_global_top_left = frame.get_global_position()
+
+				# Половина размера рамки
+				var half_size = frame.size / 2
+
+				# Центр рамки
+				var frame_center = frame_global_top_left + half_size
+
+				# Ограничения движения
+				var min_x = frame_center.x - half_size.x + 14
+				var max_x = frame_center.x + half_size.x - 13
+				var min_y = frame_center.y - half_size.y + 14
+				var max_y = frame_center.y + half_size.y - 13
+
+				# Ограничиваем глобальную позицию игрока
+				player_mini.global_position.x = clamp(player_mini.global_position.x, min_x, max_x)
+				player_mini.global_position.y = clamp(player_mini.global_position.y, min_y, max_y)
+			else:
+				player_last_move_dir = Vector2.ZERO
+
 	
 	# --- ПЕРЕКЛЮЧЕНИЕ КНОПОК --- #
 	if in_fight and player_turn:
@@ -110,7 +175,16 @@ func _process(delta: float) -> void:
 		if player_choice == 1 and Input.is_action_just_pressed("Z"):
 			get_tree().quit()
 
+
 func dmg_zone() -> void:
+	if _middle_turn != false:
+		delete_dmg_zone()
+		return
+		
+	_bars_array.clear()  # Очищаем старый массив
+	_current_index = 0   # Сбрасываем индекс
+	_current_bar = null  # Сбрасываем текущую палку
+	
 	var damage_zone = Sprite2D.new()    # Создаём зону урона по врагу
 	damage_zone.name = "Damage_Zone"    # Устанавливаем имя, чтобы можно было найти
 	frame_parent.add_child(damage_zone) # Сразу его добавляем его в родительскую рамку
@@ -179,9 +253,23 @@ func dmg_zone() -> void:
 		spawn_bars_sequentially(_bars_array, 0, _bars_array.size())
 		print("Размер массива: ", _bars_array.size())
 	)
-	
+
+
 func spawn_bars_sequentially(bars_array: Array[Panel], index: int, total_bars: int) -> void:
-	if index >= bars_array.size():
+	if index >= bars_array.size() or _middle_turn != false:
+		for bar in bars_array:
+			if is_instance_valid(bar):
+				# Убиваем возможный tween, привязанный к палке
+				if bar.has_meta("tween"):
+					var t = bar.get_meta("tween")
+					if t and is_instance_valid(t):
+						t.kill()
+					bar.remove_meta("tween")
+				bar.queue_free()
+		_bars_array.clear()
+		_current_bar = null
+		_current_index = 0
+		delete_dmg_zone()
 		return
 	
 	var current_spawned_bar = bars_array[index]
@@ -239,13 +327,127 @@ func spawn_bars_sequentially(bars_array: Array[Panel], index: int, total_bars: i
 	
 	spawn_bars_sequentially(bars_array, index + 1, total_bars)
 
+func victory() -> void:
+	_middle_turn = true
+	frame_to_start()
+	ENEMY_TURN = false
+	ENEMY_SPRITE_GET_DAMAGE = true
+	player_turn = false
+	player_choice = -1
+
+	# Останавливаем ENEMY_TWEEN, если он активен
+	if ENEMY_TWEEN != null and is_instance_valid(ENEMY_TWEEN):
+		ENEMY_TWEEN.kill()
+		ENEMY_TWEEN = null
+
+	var sprite = ENEMY.get_node("enemy_texture")
+	if sprite:
+		sprite.stop()
+
+	# 1. Исчезновение врага (короткая анимация)
+	var enemy_fade_tween = create_tween()
+	enemy_fade_tween.tween_property(ENEMY, "modulate:a", 0.0, 0.4)
+	# не ждём тут окончания — продолжение по нажатию Z
+
+	# 2. Создаем черный экран перехода и делаем видимым
+	var trans_back = ColorRect.new()
+	trans_back.name = "VictoryTransBack"
+	trans_back.color = Color.BLACK
+	trans_back.modulate.a = 0.0
+	trans_back.z_index = 999
+	trans_back.size = Vector2(640, 480)
+	trans_back.position = Vector2(0, 0)
+	get_tree().current_scene.add_child(trans_back)
+
+	# 3. Готовы к ожиданию нажатия Z — дальше продолжит _input
+	ready_to_tween = true
+
+func continue_victory() -> void:
+	# Немедленно предотвращаем повторный вход
+	if not ready_to_tween:
+		return
+
+	# Найдём наш trans_back (если он есть)
+	var trans_back = get_tree().current_scene.get_node_or_null("VictoryTransBack")
+	if trans_back == null:
+		# Если по какой-то причине экран не найден — создадим локально, чтобы не упасть
+		trans_back = ColorRect.new()
+		trans_back.color = Color.BLACK
+		trans_back.modulate.a = 0.0
+		trans_back.z_index = 999
+		trans_back.size = Vector2(640, 480)
+		trans_back.position = Vector2(0, 0)
+		get_tree().current_scene.add_child(trans_back)
+
+	# 4. Затемнение экрана
+	var fade_in_tween = create_tween()
+	fade_in_tween.tween_property(trans_back, "modulate:a", 1.0, 0.5)
+	await fade_in_tween.finished
+
+	# 5. Удаляем все элементы боя — более надёжно: удаляем контейнер fight_background и ENEMY
+	if is_instance_valid(fight_background):
+		# Если хотим гарантированно удалить все дочерние узлы — скопируем массив и удалим
+		for child in fight_background.get_children():
+			if is_instance_valid(child):
+				child.queue_free()
+		fight_background.queue_free()
+		fight_background = null
+
+
+
+	# 6. Осветление экрана
+	var fade_out_tween = create_tween()
+	fade_out_tween.tween_property(trans_back, "modulate:a", 0.0, 0.5)
+	await fade_out_tween.finished
+	
+	global_vars.can_move = true
+
+	# 7. Удаляем trans_back
+	if is_instance_valid(trans_back):
+		trans_back.queue_free()
+
+	# Сбрасываем флаги и возвращаем управление игроку
+	_middle_turn = false
+	tween_process = false
+	ready_to_tween = false
+	in_fight = false
+	fight_background = null
+	frame_parent = null
+	frame = null
+	label = null
+	buttons.clear()
+	hp_sprite = null
+	
+	player.get_node("plr_main_collision").disabled = false
+	
+	# Удаляем все временные боевые объекты, которые могли быть добавлены в ENEMY
+	if is_instance_valid(ENEMY):
+		# Лучше удалить все дочерние элементы, чтобы очистить всё, а затем удалить ENEMY
+		for c in ENEMY.get_children():
+			if is_instance_valid(c):
+				c.queue_free()
+		ENEMY.queue_free()
+		ENEMY = null
+
 func _input(event: InputEvent) -> void:
+	if ready_to_tween and event.is_action_pressed("Z"):
+		print("Продолжаем")
+		continue_victory()
+		return
+	
 	if not in_fight:
+		return
+	
+	if ENEMY_HP <= 0 and ready_to_tween != true:
+		victory()
 		return
 	
 	if event.is_action_pressed("Z"):
 		# Проверяем, есть ли активная палка
 		if _current_bar != null and is_instance_valid(_current_bar):
+			if _current_index >= _bars_array.size():
+				print("Индекс вне границ массива!")
+				return
 			# Получаем позицию палки по X
 			var bar_x = _current_bar.position.x
 			# Список диапазонов и урона
@@ -292,6 +494,8 @@ func _input(event: InputEvent) -> void:
 				ENEMY_SPRITE_GET_DAMAGE = true
 				animate_sprite(ENEMY.get_node("enemy_texture"))
 				delete_dmg_zone()
+
+
 
 func animate_sprite(sprite: AnimatedSprite2D) -> void:
 	var sprite_center = sprite.position   # Центральная позиция спрайта
@@ -355,7 +559,12 @@ func random_sprite(sprite: AnimatedSprite2D):
 			random_sprite(sprite)                 # Рекурсивно запускаем следующую смену
 			)
 
+
 func delete_dmg_zone() -> void:
+	_bars_array.clear()  # Очищаем старый массив
+	_current_index = 0   # Сбрасываем индекс
+	_current_bar = null  # Сбрасываем текущую палк
+	
 	print("Удаления зоны урона")
 	
 	var damage_zone: Sprite2D = null
@@ -368,7 +577,11 @@ func delete_dmg_zone() -> void:
 		damage_zone.queue_free()
 		print("Зона удалилась")
 	
+	if _middle_turn == true:
+		return
+		
 	var tween = create_tween()
+	print("Враг атакует!")
 	
 	# Анимируем размер
 	tween.parallel().tween_property(frame, "size", Vector2(185, 185), 0.5)
@@ -376,11 +589,199 @@ func delete_dmg_zone() -> void:
 	# Анимируем позицию (она должна сместиться в центр по новому размеру)
 	tween.parallel().tween_property(frame, "position", -Vector2(185, 185) / 2, 0.5)
 	
-	print("Враг атакует!")
-	enemy_turn()
+	tween.tween_callback(func() -> void:
+		enemy_turn_attack()
+	)
 
-func enemy_turn() -> void:
-	pass
+
+func enemy_turn_attack() -> void:
+	
+	if _middle_turn != false:
+		return
+	
+	ENEMY_TURN = true
+	player_mini.visible = true
+	player_mini.z_index = 5
+	player_mini.global_position = frame_parent.global_position
+	player_mini.scale = Vector2(1.3, 1.3)
+	player_mini_coll.disabled = false
+	
+	var enemy_proj = ENEMY.get_node("proj_area")
+	var enemy_proj_texture = enemy_proj.get_node("proj_collision/projectiles")
+	
+	enemy_attack_create_vertical(enemy_proj, 0, randi_range(1, 2), randf_range(0.5, 1))
+	enemy_attack_create_horizontal(enemy_proj, 0, randi_range(10, 13), randf_range(2, 2.5))
+
+func enemy_attack_create_vertical(enemy_proj, index: int, max_index: int, delay):
+	if index >= max_index and not ENEMY_TURN:
+		print("Ход врага закончен")
+		frame_to_start()
+		return
+	
+	var enemy_proj_clone = enemy_proj.duplicate(15)
+	var clone_coll = enemy_proj_clone.get_node("proj_collision")
+	var clone_texture = clone_coll.get_node("projectiles")
+	
+	ENEMY.add_child(enemy_proj_clone)
+	
+	enemy_proj_clone.visible = true
+	enemy_proj_clone.body_entered.connect(_on_enemy_proj_body_entered)
+	enemy_proj_clone.z_index = 5
+	var rand = randf_range(67, 90)
+	
+	enemy_proj_clone.global_position = Vector2(player_mini.global_position.x, rand)
+	
+	var tween = create_tween()
+	
+	var frame_global_top_left = frame.get_global_position()
+	# Половина размера рамки
+	var half_size = frame.size / 2
+	# Центр рамки
+	var frame_center = frame_global_top_left + half_size
+	var frame_bottom = frame_center.y + half_size.y - 10
+	
+	clone_texture.play()
+	tween.tween_property(enemy_proj_clone, "global_position:y", frame_bottom, 1)
+	
+	tween.tween_callback(func():
+		clone_coll.disabled = true  # Отключаем коллизию ПОСЛЕ полета
+	)
+	
+	tween.tween_property(enemy_proj_clone, "modulate:a", 0, 0.3)
+	
+	tween.finished.connect(func():
+		enemy_proj_clone.queue_free()
+		)
+	if ENEMY_TURN:
+		await get_tree().create_timer(delay).timeout
+		await enemy_attack_create_vertical(enemy_proj, index + 1, max_index, randf_range(0.5, 1))
+
+func enemy_attack_create_horizontal(enemy_proj, index: int, max_index: int, delay):
+	if not ENEMY_TURN:
+		print("Ход врага закончен")
+		return
+	
+	var is_from = randi_range(0, 1)
+	
+	var enemy_proj_clone = enemy_proj.duplicate(15)
+	var clone_coll = enemy_proj_clone.get_node("proj_collision")
+	var clone_texture = clone_coll.get_node("projectiles")
+	
+	ENEMY.add_child(enemy_proj_clone)
+	
+	enemy_proj_clone.visible = true
+	enemy_proj_clone.body_entered.connect(_on_enemy_proj_body_entered)
+	enemy_proj_clone.z_index = 5
+	
+	
+	var tween = create_tween()
+	
+	var frame_global_top_left = frame.get_global_position()
+
+	# Половина размера рамки
+	var half_size = frame.size / 2
+
+	# Центр рамки
+	var frame_center = frame_global_top_left + half_size
+	
+	var frame_left = frame_center.x - half_size.x + 10
+	var frame_right = frame_center.x + half_size.x - 10
+	
+	if is_from == 0:
+		enemy_proj_clone.rotation_degrees = -90
+		var rand = randf_range(67, 90)
+		enemy_proj_clone.global_position = Vector2(rand, player_mini.global_position.y)
+		tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, 1)
+	elif is_from == 1:
+		enemy_proj_clone.rotation_degrees = 90
+		var rand = randf_range(567, 590)
+		enemy_proj_clone.global_position = Vector2(rand, player_mini.global_position.y)
+		tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, 1)
+		
+	clone_texture.play()
+	
+	tween.tween_callback(func():
+		clone_coll.disabled = true  # Отключаем коллизию ПОСЛЕ полета
+	)
+	
+	tween.tween_property(enemy_proj_clone, "modulate:a", 0, 0.3)
+	
+	tween.finished.connect(func():
+		enemy_proj_clone.queue_free()
+		)
+		
+	if ENEMY_TURN:
+		await get_tree().create_timer(delay).timeout
+		await enemy_attack_create_horizontal(enemy_proj, index + 1, max_index, randf_range(2, 2.5))
+
+func frame_to_start():
+	player_mini_coll.disabled = true
+	player_mini.visible = false
+	ENEMY_TURN = false
+	player_turn = true
+	
+	var tween = create_tween()	
+	
+	tween.parallel().tween_property(frame, "size", Vector2(435, 180), 0.5)
+	
+	tween.parallel().tween_property(frame, "position", -Vector2(435, 180) / 2, 0.5)
+	
+	await tween.finished
+	setup_text()
+
+
+func _on_enemy_proj_body_entered(body):
+	if body == player_mini and not global_vars.invinc:
+		global_vars.player_hp -= 1
+		global_vars.invinc = true
+		start_player_invincibility_effect(1.0, 0.1)
+
+
+func start_player_invincibility_effect(duration: float, blink_speed: float) -> void:
+	
+	# Останавливаем предыдущий эффект, если он есть
+	if has_node("InvincibilityTimer"):
+		get_node("InvincibilityTimer").queue_free()
+	
+	var timer = Timer.new()
+	timer.name = "InvincibilityTimer"
+	timer.wait_time = blink_speed
+	timer.one_shot = false
+	add_child(timer)
+	
+	# Используем словарь для хранения изменяемых значений
+	var state = {
+		"elapsed": 0.0,
+		"visible_state": false
+	}
+	
+	# Сразу делаем невидимым
+	player_mini_texture.modulate.a = 0.0
+	
+	timer.timeout.connect(func() -> void:
+		if not is_instance_valid(player_mini_texture):
+			timer.queue_free()
+			global_vars.invinc = false
+			return
+		
+		state.elapsed += blink_speed
+		
+		# Проверяем, не истекло ли время
+		if state.elapsed >= duration:
+			# Конец эффекта - делаем полностью видимым
+			player_mini_texture.modulate.a = 1.0
+			timer.stop()
+			timer.queue_free()
+			global_vars.invinc = false
+			return
+		
+		# Переключаем видимость
+		state.visible_state = not state.visible_state
+		player_mini_texture.modulate.a = 1.0 if state.visible_state else 0.0
+	)
+	
+	timer.start()
+
 
 func setup_fight() -> void:
 	# --- ЗАДНИК --- #
@@ -470,6 +871,7 @@ func setup_fight() -> void:
 		player_turn = true                               # Игра начинается
 	)
 
+
 func setup_text() -> void:
 	label = Label.new()                         # Создание лейбла для текста
 	frame_parent.add_child(label)               # Добавляем в родительскую рамку
@@ -497,12 +899,24 @@ func setup_text() -> void:
 	load_monologue()                            # Загружаем данные диалогов
 	show_next_monologue()                       # Показываем первый монолог
 
+
 func show_next_monologue():
 	# Загружаем данные, если еще не загружены
 	if monologue_data.is_empty():               # Если данные не загружены
 		load_monologue()                        # Загружаем их
 	
 	var text_to_show = ""                       # Текст для отображения
+	
+	if _middle_turn == true:
+		# Ищем текст с id "victory"
+		for dialogue in monologue_data["test_enemy"]:
+			if str(dialogue["id"]) == "victory":  # ПРЕОБРАЗУЕМ В СТРОКУ
+				text_to_show = dialogue["text"]
+				break
+		
+		if text_to_show != "":
+			start_typing_animation(text_to_show)
+			return  # Выходим из функции
 	
 	# Если monologue <= 10, показываем последовательно
 	if monologue <= 10:                         # Если индекс меньше или равен 10
@@ -526,7 +940,8 @@ func show_next_monologue():
 		start_typing_animation(text_to_show)    # Запускаем анимацию печатания
 	else:
 		print("Текст с id ", monologue - 1, " не найден!")
-		
+
+
 func start_typing_animation(text: String):
 	label.text = text                           # Устанавливаем текст в лейбл
 	label.visible_ratio = 0.0                   # Скрываем весь текст

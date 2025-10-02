@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://dhr18pb6d8xd8"]
+[gd_scene load_steps=27 format=3 uid="uid://dhr18pb6d8xd8"]
 
 [ext_resource type="Texture2D" uid="uid://dxuhosn71yf7o" path="res://assets/sprites/test_location.png" id="1_0buge"]
 [ext_resource type="Texture2D" uid="uid://dgfst1wq6gjh6" path="res://assets/sprites/barier.png" id="2_kqr2f"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://dfp4xe688o1td" path="res://src/scripts/local/room_transition.gd" id="5_fepya"]
 [ext_resource type="Script" uid="uid://d6ofg8k7fv2n" path="res://scenes/test_enemy.gd" id="6_a2m88"]
 [ext_resource type="Texture2D" uid="uid://bcgqsrm0k2ac1" path="res://assets/sprites/test_enemy.png" id="6_uw2ja"]
+[ext_resource type="Texture2D" uid="uid://l21ru64ikimq" path="res://assets/sprites/enemy_projectile.png" id="8_2lwlr"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_a2m88"]
 size = Vector2(640, 24.5)
@@ -74,6 +75,52 @@ animations = [{
 }],
 "loop": true,
 "name": &"get_damage",
+"speed": 5.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_4lihb"]
+size = Vector2(15.5, 19.5)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i7vgu"]
+atlas = ExtResource("8_2lwlr")
+region = Rect2(0, 0, 36, 36)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3tmev"]
+atlas = ExtResource("8_2lwlr")
+region = Rect2(36, 0, 36, 36)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0c13u"]
+atlas = ExtResource("8_2lwlr")
+region = Rect2(72, 0, 36, 36)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iewhh"]
+atlas = ExtResource("8_2lwlr")
+region = Rect2(108, 0, 36, 36)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tevks"]
+atlas = ExtResource("8_2lwlr")
+region = Rect2(144, 0, 36, 36)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_pgr1u"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_i7vgu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3tmev")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0c13u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iewhh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tevks")
+}],
+"loop": true,
+"name": &"0",
 "speed": 5.0
 }]
 
@@ -196,3 +243,16 @@ debug_color = Color(0.418645, 0.604393, 1.92523e-07, 0.42)
 [node name="enemy_texture" type="AnimatedSprite2D" parent="testEnemy"]
 sprite_frames = SubResource("SpriteFrames_na2dy")
 animation = &"1"
+
+[node name="proj_area" type="Area2D" parent="testEnemy"]
+visible = false
+position = Vector2(55, -21)
+
+[node name="proj_collision" type="CollisionShape2D" parent="testEnemy/proj_area"]
+shape = SubResource("RectangleShape2D_4lihb")
+
+[node name="projectiles" type="AnimatedSprite2D" parent="testEnemy/proj_area/proj_collision"]
+sprite_frames = SubResource("SpriteFrames_pgr1u")
+animation = &"0"
+frame_progress = 0.300001
+speed_scale = 2.0
