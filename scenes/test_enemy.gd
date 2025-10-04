@@ -1074,8 +1074,8 @@ func setup_fight() -> void:
 	var tween = create_tween()
 	tween.tween_property(fight_background, "modulate:a",   1.0,       0.01) # Изменяем прозрачность за 0.2 секунды
 						  # Цель               свойство    значение    время   
-	tween.parallel().tween_property(ENEMY, "position", target_enemy_pos, 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # Изменяем позицию врага, чтобы он был сверху и был виден во время боя
-	tween.parallel().tween_property(ENEMY, "scale", target_enemy_scale, 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)   # Изменяем размер врага, чтобы его было видно
+	tween.parallel().tween_property(ENEMY, "position", target_enemy_pos, 0.89).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # Изменяем позицию врага, чтобы он был сверху и был виден во время боя
+	tween.parallel().tween_property(ENEMY, "scale", target_enemy_scale, 0.89).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)   # Изменяем размер врага, чтобы его было видно
 	
 	
 	# --- UI ИГРОКА --- #
@@ -1129,9 +1129,9 @@ func setup_fight() -> void:
 	frame.position = -frame.size / 2                                        # Центрируем относительно родителя   
 	
 	# Анимция для появления элементов
-	tween.tween_property(buttons[0], "position", Vector2(160, 410), 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(buttons[1], "position", Vector2(480, 410), 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(hp_sprite, "position", Vector2(320, 410), 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(buttons[0], "position", Vector2(160, 410), 0.59).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(buttons[1], "position", Vector2(480, 410), 0.59).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(hp_sprite, "position", Vector2(320, 410), 0.59).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(frame, "modulate:a", 1.0, 0.1).set_trans(Tween.TRANS_LINEAR)
 	
 
