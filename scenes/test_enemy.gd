@@ -2,7 +2,7 @@ extends CharacterBody2D
 
 # --- ПЕРЕМЕННЫЕ ВРАГА --- #
 var ENEMY = self                              # Ссылка на самого себя
-var ENEMY_HP: int = 1200                      # Здоровье врага
+var ENEMY_HP: int = 2500                      # Здоровье врага
 var ENEMY_WALK_SPEED: int = 90                # Скорость передвижения врага
 
 var IS_CHASING: bool = false                  # Преследует ли враг игрока
@@ -11,13 +11,13 @@ var ENEMY_TWEEN: Tween                        # Твин для анимации
 
 var ENEMY_TURN: bool = false
 var ENEMY_PROJECTILE_SPEED_VERTICAl = 1.1
-var ENEMY_PROJECTILE_SPEED_HORIZONTAL = 1.8
+var ENEMY_PROJECTILE_SPEED_HORIZONTAL = 1.5
 var ENEMY_PROJECTILE_MIN = 8
 var ENEMY_PROJECTILE_MAX = 15
 var ENEMY_PROJECTILE_MIN_VERTICAL_DELAY = 0.8
-var ENEMY_PROJECTILE_MAX_VERTICAL_DELAY = 1.3
-var ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY = 2.7
-var ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY = 5
+var ENEMY_PROJECTILE_MAX_VERTICAL_DELAY = 1.5
+var ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY = 2.5
+var ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY = 3.7
 
 # --- ПЕРЕМЕННЫЕ UI --- #
 var fight_background: ColorRect = null        # Задний фон боя
@@ -38,7 +38,7 @@ var player_choice: int = -1                   # Выбор игрока (по у
 var player_mini = null
 var player_mini_coll = null
 var player_mini_texture = null
-var player_mini_speed: float = 170
+var player_mini_speed: float = 143
 var player_last_move_dir: Vector2 = Vector2.ZERO
 
 # --- ДЛЯ БОЯ --- #
@@ -52,7 +52,13 @@ var _middle_turn: bool = false
 var tween_process: bool = false
 var ready_to_tween: bool = false
 
+var music = null
+var stream = preload("res://music/music_by_toby_fox.wav")
+
 func _ready() -> void:
+	music = get_tree().current_scene.get_node("fight_music")
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	music.stream = stream
 	player = get_tree().current_scene.get_node("player") # Получаем ссылку на игрока
 	player_mini = player.get_node("mind")
 	player_mini_coll = player_mini.get_node("mind_collision")
@@ -119,7 +125,8 @@ func _process(delta: float) -> void:
 				hp_sprite.texture = load("res://assets/sprites/hp_1_3.png")   # Изменяем спрайт на хп  1 / 3
 			0:
 				get_tree().quit()
-		
+				
+	
 		# Передвижение на арене
 		if not player_turn and ENEMY_TURN:
 			var player_mini_dir = Vector2.ZERO
@@ -164,7 +171,7 @@ func _process(delta: float) -> void:
 			else:
 				player_last_move_dir = Vector2.ZERO
 
-	
+
 	# --- ПЕРЕКЛЮЧЕНИЕ КНОПОК --- #
 	if in_fight and player_turn:
 		if Input.is_action_just_pressed("arrow_right"):
@@ -293,7 +300,7 @@ func spawn_bars_sequentially(bars_array: Array[Panel], index: int, total_bars: i
 		_current_bar = current_spawned_bar
 		_current_index = 0
 	
-	var start_position = randi_range(0, 1)
+	var start_position = randi() % 2
 	var start_x: float
 	var target_x: float
 	
@@ -343,6 +350,7 @@ func victory() -> void:
 	ENEMY_SPRITE_GET_DAMAGE = true
 	player_turn = false
 	player_choice = -1
+	music.stop()
 
 	# Останавливаем ENEMY_TWEEN, если он активен
 	if ENEMY_TWEEN != null and is_instance_valid(ENEMY_TWEEN):
@@ -509,7 +517,6 @@ func _input(event: InputEvent) -> void:
 					animate_sprite(enemy_sprite)
 
 
-
 func animate_sprite(sprite: AnimatedSprite2D) -> void:
 	var sprite_center = sprite.position   # Центральная позиция спрайта
 	
@@ -616,6 +623,12 @@ func enemy_turn_attack() -> void:
 	if _middle_turn != false:
 		return
 	
+	var will_wall = randi_range(0, 4)
+	
+	print("Значение WILL_WALL: ", will_wall)
+	
+	var wall_from = randi() % 2
+	
 	print("ЗДОРОВЬЕ ВРАГА:", ENEMY_HP)
 	ENEMY_TURN = true
 	player_mini.visible = true
@@ -628,20 +641,36 @@ func enemy_turn_attack() -> void:
 	enemy_proj.scale = Vector2(0.9, 0.9)
 	
 	await get_tree().create_timer(0.5).timeout
-	
-	enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY))
-	await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
-	enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY))
+	match will_wall:
+		0:
+			enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY), will_wall)
+			await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
+			enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY))
+		1:
+			enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY + 0.2, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY + 0.4), will_wall)
+			await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
+			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY, false, wall_from)
+		2:
+			await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 2.3, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.5)).timeout
+			enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN + 5, ENEMY_PROJECTILE_MAX + 10), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 1.8, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.0))
+		3:
+			#await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
+			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY, true, wall_from)
+		4:
+			enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY + 0.2, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY + 0.4), will_wall)
+			enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN + 5, ENEMY_PROJECTILE_MAX + 10), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 1.8, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.0))
 
-func enemy_attack_create_vertical(enemy_proj, index: int, max_index: int, delay):
-	if index > max_index and ENEMY_TURN != false:
+func enemy_attack_create_vertical(enemy_proj, index: int, max_index: int, delay, will_wall: bool):
+	if index > max_index or not ENEMY_TURN:
 		print("Ход врага закончен")
+		clear_all_enemy_projectiles()
 		frame_to_start()
 		return
 	
 	print("Вертикальный текущий индекс: ", index, " из максимума: ", max_index)
 	
 	var enemy_proj_clone = enemy_proj.duplicate(15)
+	enemy_proj_clone.name = "proj_clone"
 	var clone_coll = enemy_proj_clone.get_node("proj_collision")
 	var clone_texture = clone_coll.get_node("projectiles")
 	
@@ -657,38 +686,73 @@ func enemy_attack_create_vertical(enemy_proj, index: int, max_index: int, delay)
 	var tween = create_tween()
 	
 	var frame_global_top_left = frame.get_global_position()
-	# Половина размера рамки
 	var half_size = frame.size / 2
-	# Центр рамки
 	var frame_center = frame_global_top_left + half_size
 	var frame_bottom = frame_center.y + half_size.y - 10
 	
 	clone_texture.play()
-	tween.tween_property(enemy_proj_clone, "global_position:y", frame_bottom, ENEMY_PROJECTILE_SPEED_VERTICAl)
+	if ENEMY_HP <= 300:
+		tween.tween_property(enemy_proj_clone, "global_position:y", frame_bottom, ENEMY_PROJECTILE_SPEED_VERTICAl + 0.8)
+	else:
+		tween.tween_property(enemy_proj_clone, "global_position:y", frame_bottom, ENEMY_PROJECTILE_SPEED_VERTICAl)
 	
 	tween.tween_callback(func():
-		clone_coll.disabled = true  # Отключаем коллизию ПОСЛЕ полета
+		clone_coll.disabled = true
 	)
 	
 	tween.tween_property(enemy_proj_clone, "modulate:a", 0, 0.3)
 	
 	tween.finished.connect(func():
-		enemy_proj_clone.queue_free()
-		)
+		if is_instance_valid(enemy_proj_clone):
+			enemy_proj_clone.queue_free()
+	)
+		
 	if ENEMY_TURN:
 		await get_tree().create_timer(delay).timeout
-		enemy_attack_create_vertical(enemy_proj, index + 1, max_index, randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY))
+		
+		if not ENEMY_TURN:
+			return
+
+		var next_index = index + 1
+		var next_max = max_index
+		var next_delay_min = ENEMY_PROJECTILE_MIN_VERTICAL_DELAY
+		var next_delay_max = ENEMY_PROJECTILE_MAX_VERTICAL_DELAY
+
+		if ENEMY_HP <= 300:
+			next_max = max_index - randi_range(1, 3)
+			if will_wall:
+				next_delay_min += 1.5
+				next_delay_max += 1.6
+			else:
+				next_delay_min += 0.9
+				next_delay_max += 1.0
+		else:
+			if will_wall:
+				next_delay_min += 0.2
+				next_delay_max += 0.4
+
+		enemy_attack_create_vertical(
+			enemy_proj,
+			next_index,
+			next_max,
+			randf_range(next_delay_min, next_delay_max),
+			will_wall
+		)
+
 
 func enemy_attack_create_horizontal(enemy_proj, index: int, max_index: int, delay):
-	if ENEMY_TURN != true:
+	if index > max_index or not ENEMY_TURN:
 		print("Ход врага закончен")
+		clear_all_enemy_projectiles()
+		frame_to_start()
 		return
 	
-	var is_from = randi_range(0, 1)
+	var is_from = randi() % 2
 	
 	print("Горизонтальный текущий индекс: ", index, " из максимума: ", max_index)
 	
 	var enemy_proj_clone = enemy_proj.duplicate(15)
+	enemy_proj_clone.name = "proj_clone"
 	var clone_coll = enemy_proj_clone.get_node("proj_collision")
 	var clone_texture = clone_coll.get_node("projectiles")
 	
@@ -716,28 +780,208 @@ func enemy_attack_create_horizontal(enemy_proj, index: int, max_index: int, dela
 		enemy_proj_clone.rotation_degrees = -90
 		var rand = randf_range(67, 90)
 		enemy_proj_clone.global_position = Vector2(rand, player_mini.global_position.y)
-		tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		if ENEMY_HP <= 300:
+			tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		else:
+			tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	elif is_from == 1:
 		enemy_proj_clone.rotation_degrees = 90
 		var rand = randf_range(567, 590)
 		enemy_proj_clone.global_position = Vector2(rand, player_mini.global_position.y)
-		tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		if ENEMY_HP <= 300:
+			tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		else:
+			tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+			
 		
 	clone_texture.play()
 	
 	tween.tween_callback(func():
-		clone_coll.disabled = true  # Отключаем коллизию ПОСЛЕ полета
+		if is_instance_valid(enemy_proj_clone):
+			clone_coll.disabled = true
 	)
 	
 	tween.tween_property(enemy_proj_clone, "modulate:a", 0, 0.3)
 	
 	tween.finished.connect(func():
-		enemy_proj_clone.queue_free()
-		)
+		if is_instance_valid(enemy_proj_clone):
+			enemy_proj_clone.queue_free()
+	)
 		
 	if ENEMY_TURN:
 		await get_tree().create_timer(delay).timeout
-		enemy_attack_create_horizontal(enemy_proj, index + 1, max_index, randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY))
+		
+		if not ENEMY_TURN:
+			return
+			
+		if ENEMY_HP <= 300:
+			enemy_attack_create_horizontal(enemy_proj, index + 1, max_index - randi_range(1, 3), delay + 1.2)
+		else:
+			enemy_attack_create_horizontal(enemy_proj, index + 1, max_index, delay)
+
+
+func enemy_attact_create_wall(enemy_proj, delay, several_wall: bool, wall_from: int):
+	if not ENEMY_TURN:
+		return
+	
+	# Глобальные координаты левого верхнего угла рамки
+	var frame_global_top_left = frame.get_global_position()
+	
+	# Половина размера рамки
+	var half_size = frame.size / 2
+	
+	# Центр рамки
+	var frame_center = frame_global_top_left + half_size
+	
+	# Позиция
+	var frame_left = frame_center.x - half_size.x + 10
+	var frame_right = frame_center.x + half_size.x - 10
+	var frame_top = frame_center.y - half_size.y + 10
+	var frame_bottom = frame_center.y + half_size.y - 10
+	
+		
+	var left_wall = frame_bottom - frame_top
+	var right_wall = frame_bottom - frame_top
+	
+	var offsetY = 45
+	var random_hole = randi_range(1, 4)
+	
+	if several_wall:
+			for i in randi_range(7, 14):
+				var offset = 45
+				var random = randi_range(1, 4)
+				for j in range(1, 5):
+					if j == random:
+						offset += 45
+						continue
+						
+					var tween = create_tween()
+					var enemy_proj_clone = enemy_proj.duplicate(15)
+					var clone_coll = enemy_proj_clone.get_node("proj_collision")
+					var clone_texture = clone_coll.get_node("projectiles")
+					
+					enemy_proj_clone.name = "proj_clone"
+					ENEMY.add_child(enemy_proj_clone)
+				
+					enemy_proj_clone.global_position.y = left_wall + offset
+		
+					match wall_from:
+						0:
+							enemy_proj_clone.global_position.x = frame_left
+							clone_texture.rotation_degrees = -90
+							if ENEMY_HP <= 300:
+								tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 2.3)
+							else:
+								tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9)
+						1:
+							enemy_proj_clone.global_position.x = frame_right
+							clone_texture.rotation_degrees = 90
+							if ENEMY_HP <= 300:
+								tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 2.3)
+							else:
+								tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9)
+					
+					clone_texture.play()
+					enemy_proj_clone.visible = true
+					enemy_proj_clone.body_entered.connect(_on_enemy_proj_body_entered)
+					enemy_proj_clone.z_index = 5
+					offset += 45
+					
+					tween.tween_callback(func():
+						if is_instance_valid(enemy_proj_clone):
+							clone_coll.disabled = true
+					)
+					
+					tween.tween_property(enemy_proj_clone, "modulate:a", 0, 0.3)
+					
+					tween.finished.connect(func():
+						if is_instance_valid(enemy_proj_clone):
+							enemy_proj_clone.queue_free()
+					)
+				await get_tree().create_timer(1.4).timeout
+			frame_to_start()
+	else:
+		
+		var is_from = randi() % 2
+
+		
+		print("Рандомная дырка равна: ", random_hole)
+		for i in range(1, 5):
+			if i == random_hole:
+				offsetY += 45
+				continue
+			
+			var tween = create_tween()
+			var enemy_proj_clone = enemy_proj.duplicate(15)
+			enemy_proj_clone.name = "proj_clone"
+			var clone_coll = enemy_proj_clone.get_node("proj_collision")
+			var clone_texture = clone_coll.get_node("projectiles")
+			ENEMY.add_child(enemy_proj_clone)
+			
+				
+			enemy_proj_clone.global_position.y = left_wall + offsetY
+			
+			match is_from:
+				0:
+					enemy_proj_clone.global_position.x = frame_left
+					clone_texture.rotation_degrees = -90
+					if ENEMY_HP <= 300:
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 2.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+					else:
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+				1:
+					enemy_proj_clone.global_position.x = frame_right
+					clone_texture.rotation_degrees = 90
+					if ENEMY_HP <= 300:
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 2.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+					else:
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+			
+			clone_texture.play()
+			enemy_proj_clone.visible = true
+			enemy_proj_clone.body_entered.connect(_on_enemy_proj_body_entered)
+			enemy_proj_clone.z_index = 5
+			offsetY += 45
+			
+			tween.tween_callback(func():
+				if is_instance_valid(enemy_proj_clone):
+					clone_coll.disabled = true
+			)
+			
+			tween.tween_property(enemy_proj_clone, "modulate:a", 0, 0.3)
+			
+			tween.finished.connect(func():
+				if is_instance_valid(enemy_proj_clone):
+					enemy_proj_clone.queue_free()
+			)
+	
+	if ENEMY_TURN:
+		await get_tree().create_timer(delay).timeout
+		
+		if not ENEMY_TURN:
+			clear_all_enemy_projectiles()
+			return
+
+		if ENEMY_HP <= 300:
+			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY + 6.8, false, -1)
+		else:
+			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY + 3.2, false, -1)
+			
+func clear_all_enemy_projectiles():
+	for child in ENEMY.get_children():
+		if child.name == "proj_clone":
+			var clone_coll = child.get_node_or_null("proj_collision")
+			if clone_coll:
+				clone_coll.disabled = true
+			
+			var fade_tween = create_tween()
+			# Создаём локальную копию для замыкания
+			var proj_to_free = child
+			fade_tween.tween_property(proj_to_free, "modulate:a", 0, 0.3)
+			fade_tween.finished.connect(func():
+				if is_instance_valid(proj_to_free):
+					proj_to_free.queue_free()
+			)
 
 func frame_to_start():
 	player_mini_coll.disabled = true
@@ -745,7 +989,7 @@ func frame_to_start():
 	ENEMY_TURN = false
 	player_turn = true
 	
-	var tween = create_tween()	
+	var tween = create_tween()
 	
 	tween.parallel().tween_property(frame, "size", Vector2(435, 180), 0.5)
 	
@@ -828,10 +1072,10 @@ func setup_fight() -> void:
 	
 	# Создаем твин для управлением анимации
 	var tween = create_tween()
-	tween.tween_property(fight_background, "modulate:a",   1.0,       0.2) # Изменяем прозрачность за 0.2 секунды
+	tween.tween_property(fight_background, "modulate:a",   1.0,       0.01) # Изменяем прозрачность за 0.2 секунды
 						  # Цель               свойство    значение    время   
-	tween.parallel().tween_property(ENEMY, "position", target_enemy_pos, 1.0).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # Изменяем позицию врага, чтобы он был сверху и был виден во время боя
-	tween.parallel().tween_property(ENEMY, "scale", target_enemy_scale, 1.0).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)   # Изменяем размер врага, чтобы его было видно
+	tween.parallel().tween_property(ENEMY, "position", target_enemy_pos, 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # Изменяем позицию врага, чтобы он был сверху и был виден во время боя
+	tween.parallel().tween_property(ENEMY, "scale", target_enemy_scale, 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)   # Изменяем размер врага, чтобы его было видно
 	
 	
 	# --- UI ИГРОКА --- #
@@ -885,17 +1129,19 @@ func setup_fight() -> void:
 	frame.position = -frame.size / 2                                        # Центрируем относительно родителя   
 	
 	# Анимция для появления элементов
-	tween.tween_property(buttons[0], "position", Vector2(160, 410), 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(buttons[1], "position", Vector2(480, 410), 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(hp_sprite, "position", Vector2(320, 410), 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(buttons[0], "position", Vector2(160, 410), 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(buttons[1], "position", Vector2(480, 410), 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(hp_sprite, "position", Vector2(320, 410), 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(frame, "modulate:a", 1.0, 0.1).set_trans(Tween.TRANS_LINEAR)
+	
+
 	
 	tween.tween_callback(func() -> void:                 # Ждём окончание всех твинов и только тогда запускаем
 		animate_sprite(ENEMY.get_node("enemy_texture"))  # Передаём текстуру врага
 		setup_text()                                     # Настраиваем текст диалога
-		player_turn = true                               # Игра начинается
+		music.play()
+		player_turn = true # Игра начинается
 	)
-
 
 func setup_text() -> void:
 	label = Label.new()                         # Создание лейбла для текста

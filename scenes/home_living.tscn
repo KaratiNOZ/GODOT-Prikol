@@ -256,3 +256,5 @@ sprite_frames = SubResource("SpriteFrames_pgr1u")
 animation = &"0"
 frame_progress = 0.300001
 speed_scale = 2.0
+
+[node name="fight_music" type="AudioStreamPlayer" parent="."]
