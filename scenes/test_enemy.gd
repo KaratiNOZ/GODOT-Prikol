@@ -2,12 +2,14 @@ extends CharacterBody2D
 
 # --- ПЕРЕМЕННЫЕ ВРАГА --- #
 var ENEMY = self                              # Ссылка на самого себя
-var ENEMY_HP: int = 2500                      # Здоровье врага
-var ENEMY_WALK_SPEED: int = 90                # Скорость передвижения врага
+var ENEMY_HP: int = 500                      # Здоровье врага
+var ENEMY_WALK_SPEED: int = 110               # Скорость передвижения врага
 
 var IS_CHASING: bool = false                  # Преследует ли враг игрока
 var ENEMY_SPRITE_GET_DAMAGE: bool = false     # Получает ли враг урон в данный момент
 var ENEMY_TWEEN: Tween                        # Твин для анимации движения врага
+var TWO_WALLS: int = 0
+var TWO_WALLS_INDEX: int = 0
 
 var ENEMY_TURN: bool = false
 var ENEMY_PROJECTILE_SPEED_VERTICAl = 1.1
@@ -59,6 +61,8 @@ func _ready() -> void:
 	music = get_tree().current_scene.get_node("fight_music")
 	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	music.stream = stream
+	music.volume_db = -10.0
+	
 	player = get_tree().current_scene.get_node("player") # Получаем ссылку на игрока
 	player_mini = player.get_node("mind")
 	player_mini_coll = player_mini.get_node("mind_collision")
@@ -124,20 +128,22 @@ func _process(delta: float) -> void:
 			1:
 				hp_sprite.texture = load("res://assets/sprites/hp_1_3.png")   # Изменяем спрайт на хп  1 / 3
 			0:
-				get_tree().quit()
-				
+				get_tree().change_scene_to_file("res://scenes/home_living.tscn")
+				global_vars.invinc = false  # Сбрасываем неуязвимость
+				global_vars.can_move = true  # На всякий случай
+				global_vars.player_hp = 3
 	
 		# Передвижение на арене
 		if not player_turn and ENEMY_TURN:
 			var player_mini_dir = Vector2.ZERO
 			
-			if Input.is_action_pressed("ui_left"):
+			if Input.is_action_pressed("ui_left") or Input.is_action_pressed("A"):
 				player_mini_dir.x -= 1
-			if Input.is_action_pressed("ui_right"):
+			if Input.is_action_pressed("ui_right") or Input.is_action_pressed("D"):
 				player_mini_dir.x += 1
-			if Input.is_action_pressed("ui_up"):
+			if Input.is_action_pressed("ui_up") or Input.is_action_pressed("W"):
 				player_mini_dir.y -= 1
-			if Input.is_action_pressed("ui_down"):
+			if Input.is_action_pressed("ui_down")  or Input.is_action_pressed("S"):
 				player_mini_dir.y += 1
 			
 			if player_mini_dir != Vector2.ZERO:
@@ -182,12 +188,12 @@ func _process(delta: float) -> void:
 			player_choice = 0
 			buttons[0].texture = load("res://assets/sprites/attack_active.png")
 			buttons[1].texture = load("res://assets/sprites/run_non_active.png")
-		if player_choice == 0 and Input.is_action_just_pressed("Z"):
+		if (player_choice == 0 and Input.is_action_just_pressed("Z")) or (player_choice == 0 and Input.is_action_just_pressed("F")):
 			buttons[0].texture = load("res://assets/sprites/attack_non_active.png")
 			player_turn = false
 			player_choice = -1
 			dmg_zone()
-		if player_choice == 1 and Input.is_action_just_pressed("Z"):
+		if (player_choice == 1 and Input.is_action_just_pressed("Z")) or ((player_choice == 0 and Input.is_action_just_pressed("F"))):
 			get_tree().quit()
 
 
@@ -343,6 +349,7 @@ func spawn_bars_sequentially(bars_array: Array[Panel], index: int, total_bars: i
 	
 	spawn_bars_sequentially(bars_array, index + 1, total_bars)
 
+
 func victory() -> void:
 	_middle_turn = true
 	frame_to_start()
@@ -378,6 +385,7 @@ func victory() -> void:
 
 	# 3. Готовы к ожиданию нажатия Z — дальше продолжит _input
 	ready_to_tween = true
+
 
 func continue_victory() -> void:
 	# Немедленно предотвращаем повторный вход
@@ -446,10 +454,11 @@ func continue_victory() -> void:
 		ENEMY.queue_free()
 		ENEMY = null
 
+
 func _input(event: InputEvent) -> void:
-	if ready_to_tween and event.is_action_pressed("Z"):
+	if (ready_to_tween and event.is_action_pressed("Z")) or (ready_to_tween and event.is_action_pressed("F")):
 		await get_tree().create_timer(2).timeout
-		if event.is_action_pressed("Z"):
+		if event.is_action_pressed("Z") or event.is_action_pressed("F"):
 			print("Продолжаем")
 			continue_victory()
 			return
@@ -461,7 +470,7 @@ func _input(event: InputEvent) -> void:
 		victory()
 		return
 	
-	if event.is_action_pressed("Z"):
+	if event.is_action_pressed("Z") or event.is_action_pressed("F"):
 		# Проверяем, есть ли активная палка
 		if _current_bar != null and is_instance_valid(_current_bar):
 			if _current_index >= _bars_array.size():
@@ -623,7 +632,7 @@ func enemy_turn_attack() -> void:
 	if _middle_turn != false:
 		return
 	
-	var will_wall = randi_range(0, 4)
+	var will_wall = 6#randi_range(0, 6)
 	
 	print("Значение WILL_WALL: ", will_wall)
 	
@@ -636,29 +645,44 @@ func enemy_turn_attack() -> void:
 	player_mini.global_position = frame_parent.global_position
 	player_mini.scale = Vector2(1.3, 1.3)
 	player_mini_coll.disabled = false
+	TWO_WALLS = 0
 	
 	var enemy_proj = ENEMY.get_node("proj_area")
 	enemy_proj.scale = Vector2(0.9, 0.9)
 	
-	await get_tree().create_timer(0.5).timeout
-	match will_wall:
-		0:
-			enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY), will_wall)
-			await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
-			enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY))
-		1:
-			enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY + 0.2, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY + 0.4), will_wall)
-			await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
-			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY, false, wall_from)
-		2:
-			await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 2.3, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.5)).timeout
-			enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN + 5, ENEMY_PROJECTILE_MAX + 10), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 1.8, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.0))
-		3:
-			#await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
-			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY, true, wall_from)
-		4:
-			enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY + 0.2, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY + 0.4), will_wall)
-			enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN + 5, ENEMY_PROJECTILE_MAX + 10), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 1.8, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.0))
+	if ENEMY_HP <= 550:
+		await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 2.3, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.5)).timeout
+		enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN + 5, ENEMY_PROJECTILE_MAX + 10), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 1.8, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.0))
+	else:
+		await get_tree().create_timer(0.5).timeout
+		match will_wall:
+			0:
+				enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY), will_wall)
+				await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
+				enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY))
+			1:
+				enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY + 0.2, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY + 0.4), will_wall)
+				await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
+				enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY, false, wall_from)
+			2:
+				await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 2.3, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.5)).timeout
+				enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN + 5, ENEMY_PROJECTILE_MAX + 10), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 1.8, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.0))
+			3:
+				#await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
+				enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY, true, wall_from)
+			4:
+				enemy_attack_create_vertical(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX), randf_range(ENEMY_PROJECTILE_MIN_VERTICAL_DELAY + 0.2, ENEMY_PROJECTILE_MAX_VERTICAL_DELAY + 0.4), will_wall)
+				enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN + 5, ENEMY_PROJECTILE_MAX + 10), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 1.8, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.0))
+			5:
+				enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 2.3, false, wall_from)
+				await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
+				enemy_attack_create_horizontal(enemy_proj, 0, randi_range(ENEMY_PROJECTILE_MIN, ENEMY_PROJECTILE_MAX + 1), randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 0.9, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 1.2))
+			6:
+				enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 1.9, false, wall_from)
+				await get_tree().create_timer(randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY)).timeout
+				enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 2.3, false, wall_from)
+				TWO_WALLS = randi_range(3, 8)
+
 
 func enemy_attack_create_vertical(enemy_proj, index: int, max_index: int, delay, will_wall: bool):
 	if index > max_index or not ENEMY_TURN:
@@ -692,7 +716,7 @@ func enemy_attack_create_vertical(enemy_proj, index: int, max_index: int, delay,
 	
 	clone_texture.play()
 	if ENEMY_HP <= 300:
-		tween.tween_property(enemy_proj_clone, "global_position:y", frame_bottom, ENEMY_PROJECTILE_SPEED_VERTICAl + 0.8)
+		tween.tween_property(enemy_proj_clone, "global_position:y", frame_bottom, ENEMY_PROJECTILE_SPEED_VERTICAl - 0.8)
 	else:
 		tween.tween_property(enemy_proj_clone, "global_position:y", frame_bottom, ENEMY_PROJECTILE_SPEED_VERTICAl)
 	
@@ -717,12 +741,12 @@ func enemy_attack_create_vertical(enemy_proj, index: int, max_index: int, delay,
 		var next_max = max_index
 		var next_delay_min = ENEMY_PROJECTILE_MIN_VERTICAL_DELAY
 		var next_delay_max = ENEMY_PROJECTILE_MAX_VERTICAL_DELAY
-
+		"""
 		if ENEMY_HP <= 300:
-			next_max = max_index - randi_range(1, 3)
+			next_max = max_index + randi_range(1, 3)
 			if will_wall:
-				next_delay_min += 1.5
-				next_delay_max += 1.6
+				next_delay_min -= 1.5
+				next_delay_max -= 10.6
 			else:
 				next_delay_min += 0.9
 				next_delay_max += 1.0
@@ -730,6 +754,7 @@ func enemy_attack_create_vertical(enemy_proj, index: int, max_index: int, delay,
 			if will_wall:
 				next_delay_min += 0.2
 				next_delay_max += 0.4
+		"""
 
 		enemy_attack_create_vertical(
 			enemy_proj,
@@ -780,16 +805,16 @@ func enemy_attack_create_horizontal(enemy_proj, index: int, max_index: int, dela
 		enemy_proj_clone.rotation_degrees = -90
 		var rand = randf_range(67, 90)
 		enemy_proj_clone.global_position = Vector2(rand, player_mini.global_position.y)
-		if ENEMY_HP <= 300:
-			tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		if ENEMY_HP <= 500:
+			tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL - 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 		else:
 			tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	elif is_from == 1:
 		enemy_proj_clone.rotation_degrees = 90
 		var rand = randf_range(567, 590)
 		enemy_proj_clone.global_position = Vector2(rand, player_mini.global_position.y)
-		if ENEMY_HP <= 300:
-			tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		if ENEMY_HP <= 500:
+			tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL - 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 		else:
 			tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 			
@@ -814,8 +839,8 @@ func enemy_attack_create_horizontal(enemy_proj, index: int, max_index: int, dela
 		if not ENEMY_TURN:
 			return
 			
-		if ENEMY_HP <= 300:
-			enemy_attack_create_horizontal(enemy_proj, index + 1, max_index - randi_range(1, 3), delay + 1.2)
+		if ENEMY_HP <= 500:
+			enemy_attack_create_horizontal(enemy_proj, index + 1, max_index, randf_range(ENEMY_PROJECTILE_MIN_HORIZONTAl_DELAY - 1.8, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY - 3.0))
 		else:
 			enemy_attack_create_horizontal(enemy_proj, index + 1, max_index, delay)
 
@@ -846,6 +871,8 @@ func enemy_attact_create_wall(enemy_proj, delay, several_wall: bool, wall_from: 
 	var offsetY = 45
 	var random_hole = randi_range(1, 4)
 	
+	
+	
 	if several_wall:
 			for i in randi_range(7, 14):
 				var offset = 45
@@ -870,14 +897,14 @@ func enemy_attact_create_wall(enemy_proj, delay, several_wall: bool, wall_from: 
 							enemy_proj_clone.global_position.x = frame_left
 							clone_texture.rotation_degrees = -90
 							if ENEMY_HP <= 300:
-								tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 2.3)
+								tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL)
 							else:
 								tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9)
 						1:
 							enemy_proj_clone.global_position.x = frame_right
 							clone_texture.rotation_degrees = 90
 							if ENEMY_HP <= 300:
-								tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 2.3)
+								tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL)
 							else:
 								tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9)
 					
@@ -900,8 +927,11 @@ func enemy_attact_create_wall(enemy_proj, delay, several_wall: bool, wall_from: 
 					)
 				await get_tree().create_timer(1.4).timeout
 			frame_to_start()
-	else:
-		
+	elif TWO_WALLS != 0:
+		if TWO_WALLS_INDEX > TWO_WALLS:
+			frame_to_start()
+			return
+			
 		var is_from = randi() % 2
 
 		
@@ -926,14 +956,69 @@ func enemy_attact_create_wall(enemy_proj, delay, several_wall: bool, wall_from: 
 					enemy_proj_clone.global_position.x = frame_left
 					clone_texture.rotation_degrees = -90
 					if ENEMY_HP <= 300:
-						tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 2.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL - 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 					else:
 						tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 				1:
 					enemy_proj_clone.global_position.x = frame_right
 					clone_texture.rotation_degrees = 90
 					if ENEMY_HP <= 300:
-						tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 2.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL - 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+					else:
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+			
+			clone_texture.play()
+			enemy_proj_clone.visible = true
+			enemy_proj_clone.body_entered.connect(_on_enemy_proj_body_entered)
+			enemy_proj_clone.z_index = 5
+			offsetY += 45
+			
+			tween.tween_callback(func():
+				if is_instance_valid(enemy_proj_clone):
+					clone_coll.disabled = true
+			)
+			
+			tween.tween_property(enemy_proj_clone, "modulate:a", 0, 0.3)
+			
+			tween.finished.connect(func():
+				if is_instance_valid(enemy_proj_clone):
+					enemy_proj_clone.queue_free()
+			)
+			
+			TWO_WALLS_INDEX += 1
+	else:
+		var is_from = randi() % 2
+
+		
+		print("Рандомная дырка равна: ", random_hole)
+		for i in range(1, 5):
+			if i == random_hole:
+				offsetY += 45
+				continue
+			
+			var tween = create_tween()
+			var enemy_proj_clone = enemy_proj.duplicate(15)
+			enemy_proj_clone.name = "proj_clone"
+			var clone_coll = enemy_proj_clone.get_node("proj_collision")
+			var clone_texture = clone_coll.get_node("projectiles")
+			ENEMY.add_child(enemy_proj_clone)
+			
+				
+			enemy_proj_clone.global_position.y = left_wall + offsetY
+			
+			match is_from:
+				0:
+					enemy_proj_clone.global_position.x = frame_left
+					clone_texture.rotation_degrees = -90
+					if ENEMY_HP <= 300:
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL - 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+					else:
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_right, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+				1:
+					enemy_proj_clone.global_position.x = frame_right
+					clone_texture.rotation_degrees = 90
+					if ENEMY_HP <= 300:
+						tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL - 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 					else:
 						tween.tween_property(enemy_proj_clone, "global_position:x", frame_left, ENEMY_PROJECTILE_SPEED_HORIZONTAL + 0.9).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 			
@@ -963,10 +1048,11 @@ func enemy_attact_create_wall(enemy_proj, delay, several_wall: bool, wall_from: 
 			return
 
 		if ENEMY_HP <= 300:
-			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY + 6.8, false, -1)
+			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY, false, -1)
 		else:
-			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY + 3.2, false, -1)
-			
+			enemy_attact_create_wall(enemy_proj, ENEMY_PROJECTILE_MAX_HORIZONTAl_DELAY, false, -1)
+
+
 func clear_all_enemy_projectiles():
 	for child in ENEMY.get_children():
 		if child.name == "proj_clone":
@@ -982,6 +1068,7 @@ func clear_all_enemy_projectiles():
 				if is_instance_valid(proj_to_free):
 					proj_to_free.queue_free()
 			)
+
 
 func frame_to_start():
 	player_mini_coll.disabled = true
@@ -1072,10 +1159,10 @@ func setup_fight() -> void:
 	
 	# Создаем твин для управлением анимации
 	var tween = create_tween()
-	tween.tween_property(fight_background, "modulate:a",   1.0,       0.01) # Изменяем прозрачность за 0.2 секунды
+	tween.tween_property(fight_background, "modulate:a",   1.0,       0.2) # Изменяем прозрачность за 0.2 секунды
 						  # Цель               свойство    значение    время   
-	tween.parallel().tween_property(ENEMY, "position", target_enemy_pos, 0.89).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # Изменяем позицию врага, чтобы он был сверху и был виден во время боя
-	tween.parallel().tween_property(ENEMY, "scale", target_enemy_scale, 0.89).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)   # Изменяем размер врага, чтобы его было видно
+	tween.parallel().tween_property(ENEMY, "position", target_enemy_pos, 0.69).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # Изменяем позицию врага, чтобы он был сверху и был виден во время боя
+	tween.parallel().tween_property(ENEMY, "scale", target_enemy_scale, 0.69).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)   # Изменяем размер врага, чтобы его было видно
 	
 	
 	# --- UI ИГРОКА --- #
@@ -1129,9 +1216,9 @@ func setup_fight() -> void:
 	frame.position = -frame.size / 2                                        # Центрируем относительно родителя   
 	
 	# Анимция для появления элементов
-	tween.tween_property(buttons[0], "position", Vector2(160, 410), 0.59).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(buttons[1], "position", Vector2(480, 410), 0.59).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(hp_sprite, "position", Vector2(320, 410), 0.59).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(buttons[0], "position", Vector2(160, 410), 0.49).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(buttons[1], "position", Vector2(480, 410), 0.49).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(hp_sprite, "position", Vector2(320, 410), 0.49).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(frame, "modulate:a", 1.0, 0.1).set_trans(Tween.TRANS_LINEAR)
 	
 
@@ -1142,6 +1229,7 @@ func setup_fight() -> void:
 		music.play()
 		player_turn = true # Игра начинается
 	)
+
 
 func setup_text() -> void:
 	label = Label.new()                         # Создание лейбла для текста

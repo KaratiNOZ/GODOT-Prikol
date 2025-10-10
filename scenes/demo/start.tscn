@@ -1,0 +1,90 @@
+[gd_scene load_steps=4 format=3 uid="uid://co2k84mfp75iq"]
+
+[ext_resource type="Texture2D" uid="uid://duyobmnodmfqd" path="res://new_assets/heart.png" id="1_57fqn"]
+[ext_resource type="Script" uid="uid://cblttgxky8vu6" path="res://scenes/demo/start_manager.gd" id="2_4km6k"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_4km6k"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="heart" type="Sprite2D" parent="."]
+position = Vector2(320, 240)
+scale = Vector2(2, 2)
+texture = ExtResource("1_57fqn")
+
+[node name="label_parent" type="Node2D" parent="."]
+position = Vector2(319, 189)
+
+[node name="label" type="Label" parent="label_parent"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -161.5
+offset_top = -11.5
+offset_right = 161.5
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="name_label" type="Label" parent="label_parent"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -81.0
+offset_top = -0.5
+offset_right = 81.0
+offset_bottom = 22.5
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+
+[node name="manager" type="Node2D" parent="."]
+script = ExtResource("2_4km6k")
+
+[node name="y" type="Node2D" parent="."]
+position = Vector2(160, 304)
+
+[node name="accept" type="Label" parent="y"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -11.5
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+text = "Да"
+label_settings = SubResource("LabelSettings_4km6k")
+horizontal_alignment = 1
+visible_characters = 0
+visible_ratio = 0.0
+metadata/_edit_use_anchors_ = true
+
+[node name="n" type="Node2D" parent="."]
+position = Vector2(480, 304)
+
+[node name="refuse" type="Label" parent="n"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -11.5
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+text = "Нет"
+horizontal_alignment = 1
+visible_characters = 0
+visible_ratio = 0.0
