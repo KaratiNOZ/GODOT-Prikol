@@ -2,7 +2,7 @@ extends CharacterBody2D
 
 # --- ПЕРЕМЕННЫЕ ВРАГА --- #
 var ENEMY = self                              # Ссылка на самого себя
-var ENEMY_HP: int = 500                      # Здоровье врага
+var ENEMY_HP: int = 2400                      # Здоровье врага
 var ENEMY_WALK_SPEED: int = 110               # Скорость передвижения врага
 
 var IS_CHASING: bool = false                  # Преследует ли враг игрока

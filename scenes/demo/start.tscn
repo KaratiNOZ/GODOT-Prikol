@@ -1,7 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://co2k84mfp75iq"]
+[gd_scene load_steps=6 format=3 uid="uid://co2k84mfp75iq"]
 
 [ext_resource type="Texture2D" uid="uid://duyobmnodmfqd" path="res://new_assets/heart.png" id="1_57fqn"]
 [ext_resource type="Script" uid="uid://cblttgxky8vu6" path="res://scenes/demo/start_manager.gd" id="2_4km6k"]
+[ext_resource type="Texture2D" uid="uid://45p880ke7ab6" path="res://new_assets/start_border.png" id="3_na6tt"]
+[ext_resource type="Texture2D" uid="uid://dkwux3ids1w6v" path="res://new_assets/inevitability.png" id="4_s6uip"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_4km6k"]
 
@@ -62,7 +64,7 @@ offset_right = 20.0
 offset_bottom = 11.5
 grow_horizontal = 2
 grow_vertical = 2
-text = "Да"
+text = "ДА"
 label_settings = SubResource("LabelSettings_4km6k")
 horizontal_alignment = 1
 visible_characters = 0
@@ -84,7 +86,18 @@ offset_right = 20.0
 offset_bottom = 11.5
 grow_horizontal = 2
 grow_vertical = 2
-text = "Нет"
+text = "НЕТ"
 horizontal_alignment = 1
 visible_characters = 0
 visible_ratio = 0.0
+
+[node name="mind_wall" type="Sprite2D" parent="."]
+self_modulate = Color(1, 1, 1, 0.0980392)
+position = Vector2(-77, 240)
+texture = ExtResource("3_na6tt")
+
+[node name="inevitability" type="Sprite2D" parent="."]
+self_modulate = Color(1, 1, 1, 0)
+position = Vector2(320, 240)
+scale = Vector2(0.216667, 0.216667)
+texture = ExtResource("4_s6uip")
